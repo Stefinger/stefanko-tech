@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
+import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
 import { gsap } from '@/lib/gsap';
@@ -13,26 +14,20 @@ import { useReducedMotion } from '@/lib/useReducedMotion';
    PLACEHOLDER: All proof cards contain placeholder content only.
    Phase 6 will replace them with real product screenshots and assets. */
 
+/* ─── Section shell — full-width background, vertical spacing only ──────── */
 const Section = styled.section`
   background-color: ${colors.cream};
   position: relative;
-  min-height: 1132px;
+  scroll-margin-top: 100px;
   padding-top: 66px;
-  padding-left: 64px;
-  padding-right: 64px;
   padding-bottom: 66px;
 
   ${media.mobile} {
-    min-height: 1130px;
     padding-top: 48px;
-    padding-left: 24px;
-    padding-right: 24px;
     padding-bottom: 44px;
   }
 
   ${media.tablet} {
-    padding-left: 40px;
-    padding-right: 40px;
     padding-bottom: 60px;
   }
 `;
@@ -84,9 +79,10 @@ const BodyText = styled.p`
   }
 `;
 
+/* Cards grid — fixed 790 px left column within the 1312 px content area at xxl */
 const CardsGrid = styled.div`
   display: grid;
-  grid-template-columns: 790px 1fr;
+  grid-template-columns: minmax(0, 790px) 1fr;
   grid-template-rows: 200px 200px;
   column-gap: 30px;
   row-gap: 30px;
@@ -221,6 +217,7 @@ const BuildPublicCard = styled.div`
   background-color: ${colors.darkGreenAlt};
   border-radius: 34px;
   overflow: hidden;
+  scroll-margin-top: 100px;
   padding: 34px 28px;
   display: flex;
   flex-direction: column;
@@ -295,12 +292,15 @@ const MobileCtaBlobWrap = styled.div`
     line-height: 20px;
     color: ${colors.darkGreen};
     text-align: center;
+    text-decoration: none;
   }
 
   ${media.mobile} {
     display: flex;
   }
 `;
+
+/* ─── Component ─────────────────────────────────────────────────────────── */
 
 export function ProofSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -321,7 +321,6 @@ export function ProofSection() {
     const cards    = Array.from(section.querySelectorAll('[data-p-card]')) as HTMLElement[];
     const cta      = section.querySelector('[data-p-cta]');
 
-    // ── Label + headline + body entrance ─────────────────────────────────────
     gsap.timeline({
       scrollTrigger: { trigger: section, start: 'top 78%' },
       defaults: { ease: 'power2.out' },
@@ -330,9 +329,6 @@ export function ProofSection() {
       .from(lines, { opacity: 0, y: isMobile ? 22 : 36, duration: isMobile ? 0.5 : 0.65, stagger: 0.1 }, '-=0.25')
       .from(body,  { opacity: 0, y: isMobile ? 14 : 20, duration: 0.5 }, '-=0.2');
 
-    // ── Proof cards stagger in ────────────────────────────────────────────────
-    // Cards enter sequentially with a small vertical offset.
-    // The featured card (first) gets a slightly larger entrance.
     if (cards.length > 0) {
       gsap.from(cards, {
         opacity: 0,
@@ -347,7 +343,6 @@ export function ProofSection() {
       });
     }
 
-    // ── CTA entrance after cards ──────────────────────────────────────────────
     if (cta) {
       gsap.from(cta, {
         opacity: 0,
@@ -364,79 +359,81 @@ export function ProofSection() {
 
   return (
     <Section id="proof" ref={sectionRef}>
-      <div data-p-label="">
-        <SectionLabel color={colors.darkGreen}>{`06  /  REAL PROOF`}</SectionLabel>
-      </div>
+      <SiteContainer>
+        <div data-p-label="">
+          <SectionLabel color={colors.darkGreen}>{`06  /  REAL PROOF`}</SectionLabel>
+        </div>
 
-      <Headline data-p-headline="">
-        <HeadlineLine>PROOF LIVES</HeadlineLine>
-        <HeadlineLine>IN REALITY.</HeadlineLine>
-      </Headline>
+        <Headline data-p-headline="">
+          <HeadlineLine>PROOF LIVES</HeadlineLine>
+          <HeadlineLine>IN REALITY.</HeadlineLine>
+        </Headline>
 
-      <BodyText data-p-body="">Real products. Real progress. Real lessons.</BodyText>
+        <BodyText data-p-body="">Real products. Real progress. Real lessons.</BodyText>
 
-      <CardsGrid>
-        {/* PLACEHOLDER — replace with real product screenshot before launch */}
-        <FeaturedCard data-p-card="">
-          <CardWorkLabel>{`SELECTED WORK  /  01`}</CardWorkLabel>
-          <div>
-            <CardHeadline>
-              A REAL
+        <CardsGrid>
+          {/* PLACEHOLDER — replace with real product screenshot before launch */}
+          <FeaturedCard data-p-card="">
+            <CardWorkLabel>{`SELECTED WORK  /  01`}</CardWorkLabel>
+            <div>
+              <CardHeadline>
+                A REAL
+                <br />
+                DIGITAL PRODUCT
+              </CardHeadline>
+              {/* PLACEHOLDER: replace with real screenshot */}
+              <CardPlaceholderLabel>REPLACE WITH A REAL SCREENSHOT</CardPlaceholderLabel>
+            </div>
+          </FeaturedCard>
+
+          {/* PLACEHOLDER — replace with real hardware+software prototype asset */}
+          <HardwareCard data-p-card="">
+            <HardwareHeadline>
+              HARDWARE
               <br />
-              DIGITAL PRODUCT
-            </CardHeadline>
-            {/* PLACEHOLDER: replace with real screenshot */}
-            <CardPlaceholderLabel>REPLACE WITH A REAL SCREENSHOT</CardPlaceholderLabel>
-          </div>
-        </FeaturedCard>
+              + SOFTWARE
+            </HardwareHeadline>
+            <HardwareSubLabel>REAL PROTOTYPE</HardwareSubLabel>
+          </HardwareCard>
 
-        {/* PLACEHOLDER — replace with real hardware+software prototype asset */}
-        <HardwareCard data-p-card="">
-          <HardwareHeadline>
-            HARDWARE
-            <br />
-            + SOFTWARE
-          </HardwareHeadline>
-          <HardwareSubLabel>REAL PROTOTYPE</HardwareSubLabel>
-        </HardwareCard>
+          {/* PLACEHOLDER — replace with real build-in-public process image */}
+          <BuildPublicCard id="build-in-public" data-p-card="">
+            <BuildPublicHeadline>
+              BUILD IN
+              <br />
+              PUBLIC
+            </BuildPublicHeadline>
+            <BuildPublicSubLabel>REAL PROCESS IMAGE</BuildPublicSubLabel>
+          </BuildPublicCard>
+        </CardsGrid>
 
-        {/* PLACEHOLDER — replace with real build-in-public process image */}
-        <BuildPublicCard data-p-card="">
-          <BuildPublicHeadline>
-            BUILD IN
-            <br />
-            PUBLIC
-          </BuildPublicHeadline>
-          <BuildPublicSubLabel>REAL PROCESS IMAGE</BuildPublicSubLabel>
-        </BuildPublicCard>
-      </CardsGrid>
+        <DesktopCtaWrap data-p-cta="">
+          <BlobButton
+            href="#proof"
+            blobSrc="/assets/cta-explore-work-dark.svg"
+            textColor={colors.darkGreen}
+            width={236}
+            height={56}
+            fontSize={14}
+          >
+            Explore selected work
+          </BlobButton>
+        </DesktopCtaWrap>
 
-      <DesktopCtaWrap data-p-cta="">
-        <BlobButton
-          href="#proof"
-          blobSrc="/assets/cta-explore-work-dark.svg"
-          textColor={colors.darkGreen}
-          width={236}
-          height={56}
-          fontSize={14}
-        >
-          Explore selected work
-        </BlobButton>
-      </DesktopCtaWrap>
-
-      <MobileCtaWrap data-p-cta="">
-        <MobileCtaBlobWrap>
-          <Image
-            src="/assets/cta-explore-work-dark-mobile.svg"
-            alt=""
-            aria-hidden={true}
-            fill
-            unoptimized
-            style={{ objectFit: 'fill', pointerEvents: 'none' }}
-          />
-          <a href="#proof">Explore selected work</a>
-        </MobileCtaBlobWrap>
-      </MobileCtaWrap>
+        <MobileCtaWrap data-p-cta="">
+          <MobileCtaBlobWrap>
+            <Image
+              src="/assets/cta-explore-work-dark-mobile.svg"
+              alt=""
+              aria-hidden={true}
+              fill
+              unoptimized
+              style={{ objectFit: 'fill', pointerEvents: 'none' }}
+            />
+            <a href="#proof">Explore selected work</a>
+          </MobileCtaBlobWrap>
+        </MobileCtaWrap>
+      </SiteContainer>
     </Section>
   );
 }

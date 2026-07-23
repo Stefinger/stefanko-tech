@@ -4,20 +4,15 @@ import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
+import { SiteContainer } from '@/components/layout/SiteContainer';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
+/* ─── Section shell — full-width background, vertical spacing only ──────── */
 const FooterEl = styled.footer`
   background-color: ${colors.darkGreen};
-  padding: 0 64px 48px;
-
-  ${media.mobile} {
-    padding: 0 24px 48px;
-  }
-
-  ${media.tablet} {
-    padding: 0 40px 48px;
-  }
+  padding-top: 0;
+  padding-bottom: 48px;
 `;
 
 const FooterRule = styled.div`
@@ -31,12 +26,17 @@ const FooterRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+
+  ${media.mobile} {
+    align-items: flex-start;
+  }
 `;
 
 const FooterLeft = styled.div`
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-shrink: 0;
 `;
 
 const FooterBlobSWrap = styled.div`
@@ -64,6 +64,8 @@ const FooterWordmark = styled.span`
   }
 `;
 
+/* Desktop: right-aligned on one line with a slash separator.
+   Mobile: two deliberate lines, right-aligned. */
 const FooterTagline = styled.p`
   font-family: ${fonts.body};
   font-weight: 500;
@@ -71,16 +73,19 @@ const FooterTagline = styled.p`
   line-height: 18px;
   color: ${colors.muted};
   text-align: right;
-  white-space: pre-wrap;
+  white-space: nowrap;
+  flex-shrink: 0;
 
   ${media.mobile} {
     font-size: 10px;
-    line-height: 14px;
+    line-height: 16px;
     white-space: normal;
-    text-align: right;
-    max-width: 180px;
+    max-width: 160px;
+    word-break: keep-all;
   }
 `;
+
+/* ─── Component ─────────────────────────────────────────────────────────── */
 
 export function Footer() {
   const footerRef = useRef<HTMLElement>(null);
@@ -92,11 +97,10 @@ export function Footer() {
     const footer = footerRef.current;
     if (!footer) return;
 
-    const rule     = footer.querySelector('[data-ft-rule]');
-    const left     = footer.querySelector('[data-ft-left]');
-    const tagline  = footer.querySelector('[data-ft-tagline]');
+    const rule    = footer.querySelector('[data-ft-rule]');
+    const left    = footer.querySelector('[data-ft-left]');
+    const tagline = footer.querySelector('[data-ft-tagline]');
 
-    // Footer elements fade in together as the footer enters the viewport.
     gsap.timeline({
       scrollTrigger: { trigger: footer, start: 'top 92%' },
       defaults: { ease: 'power2.out' },
@@ -108,32 +112,39 @@ export function Footer() {
 
   return (
     <FooterEl ref={footerRef}>
-      <FooterRule data-ft-rule="">
-        <Image
-          src="/assets/footer-rule.svg"
-          alt=""
-          aria-hidden={true}
-          width={1312}
-          height={1}
-          unoptimized
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-        />
-      </FooterRule>
-      <FooterRow>
-        <FooterLeft data-ft-left="">
-          <FooterBlobSWrap>
-            <Image
-              src="/assets/blob-s-footer-logo.svg"
-              alt="Stefanko.tech"
-              fill
-              unoptimized
-              style={{ objectFit: 'contain' }}
-            />
-          </FooterBlobSWrap>
-          <FooterWordmark>stefanko.tech</FooterWordmark>
-        </FooterLeft>
-        <FooterTagline data-ft-tagline="">{`FROM IDEA TO PRODUCT.  /  BUILD IN PUBLIC.`}</FooterTagline>
-      </FooterRow>
+      <SiteContainer>
+        <FooterRule data-ft-rule="">
+          <Image
+            src="/assets/footer-rule.svg"
+            alt=""
+            aria-hidden={true}
+            width={1312}
+            height={1}
+            unoptimized
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        </FooterRule>
+
+        <FooterRow>
+          <FooterLeft data-ft-left="">
+            <FooterBlobSWrap>
+              <Image
+                src="/assets/blob-s-footer-logo.svg"
+                alt="Stefanko.tech"
+                fill
+                unoptimized
+                style={{ objectFit: 'contain' }}
+              />
+            </FooterBlobSWrap>
+            <FooterWordmark>stefanko.tech</FooterWordmark>
+          </FooterLeft>
+
+          {/* Mobile renders as two intentional lines via max-width constraint */}
+          <FooterTagline data-ft-tagline="">
+            FROM IDEA TO PRODUCT.&nbsp; /&nbsp; BUILD IN PUBLIC.
+          </FooterTagline>
+        </FooterRow>
+      </SiteContainer>
     </FooterEl>
   );
 }

@@ -12,6 +12,7 @@ const Section = styled.section`
   background-color: ${colors.darkGreen};
   position: relative;
   overflow: hidden;
+  scroll-margin-top: 100px;
   min-height: 1183px;
   padding-top: 68px;
   padding-left: 64px;
@@ -352,7 +353,7 @@ export function ClaritySection() {
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section ref={sectionRef}>
+    <Section id="about" ref={sectionRef}>
       <LabelWrap data-c-label="">
         <SectionLabel>{`03  /  CLARITY BEFORE COMPLEXITY`}</SectionLabel>
       </LabelWrap>

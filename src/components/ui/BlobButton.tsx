@@ -12,6 +12,7 @@ interface BlobButtonProps {
   height: number;
   fontSize?: number;
   className?: string;
+  onClick?: () => void;
 }
 
 const BlobAnchor = styled.a<{ $width: number; $height: number }>`
@@ -43,6 +44,7 @@ export function BlobButton({
   height,
   fontSize = 15,
   className,
+  onClick,
 }: BlobButtonProps) {
   return (
     <BlobAnchor
@@ -50,6 +52,7 @@ export function BlobButton({
       $width={width}
       $height={height}
       className={className}
+      onClick={onClick}
     >
       <Image
         src={blobSrc}

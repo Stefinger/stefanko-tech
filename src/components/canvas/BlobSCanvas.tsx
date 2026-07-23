@@ -170,9 +170,11 @@ export function BlobSCanvas({ reducedMotion }: BlobSCanvasProps) {
             pointerEvents: 'none',
           }}
         >
-          <ambientLight intensity={0.30} />
-          <directionalLight position={[3, 5, 4]}  intensity={1.80} color="#ffffff" />
-          <directionalLight position={[-2, -1, 2]} intensity={0.50} color="#fde8f0" />
+          {/* ambient=1.0 ensures no face is ever darker than the material colour
+              (#FF6FAE). Directional lights add form highlights only. No emissive. */}
+          <ambientLight intensity={1.0} />
+          <directionalLight position={[3, 5, 4]}  intensity={0.85} color="#ffffff" />
+          <directionalLight position={[-2, -1, 2]} intensity={0.40} color="#ffc8dc" />
 
           <BlobSMesh enablePointer={enablePointer} isMobile={isMobile} />
 

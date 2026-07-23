@@ -4,19 +4,20 @@ import dynamic from 'next/dynamic';
 import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
-import { colors, fonts, media } from '@/styles/tokens';
+import { colors, fonts } from '@/styles/tokens';
+import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
+import { SecondaryExploreCta } from '@/components/ui/SecondaryExploreCta';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
-// 3D canvas loaded client-side only. The loading fallback keeps the static SVG
-// visible until the component code and WebGL context are ready.
 const BlobSCanvas = dynamic(
   () => import('@/components/canvas/BlobSCanvas').then(m => m.BlobSCanvas),
   { ssr: false }
 );
 
+/* ─── Section shell — full-width background, vertical spacing only ──────── */
 const Section = styled.section`
   background-color: ${colors.darkGreen};
   position: relative;
@@ -24,53 +25,47 @@ const Section = styled.section`
   min-height: 1072px;
   padding-top: 154px;
   padding-bottom: 80px;
-  padding-left: 64px;
-  padding-right: 64px;
 
-  ${media.mobile} {
-    min-height: 932px;
-    padding-top: 106px;
+  @media (max-width: 991px) {
+    min-height: auto;
+    padding-top: 120px;
     padding-bottom: 60px;
-    padding-left: 24px;
-    padding-right: 24px;
   }
 
-  ${media.tablet} {
-    padding-left: 40px;
-    padding-right: 40px;
+  @media (max-width: 767px) {
+    padding-top: 106px;
   }
 `;
 
+/* ─── Responsive two-column → single-column grid ───────────────────────── */
 const HeroGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr minmax(0, min(590px, 45%));
-  column-gap: 32px;
+  grid-template-columns: 7fr 5fr;
+  column-gap: 40px;
   align-items: start;
 
-  ${media.mobile} {
-    display: flex;
-    flex-direction: column;
+  /* lg (992–1199 px): tighter but still two columns */
+  @media (min-width: 992px) and (max-width: 1199px) {
+    grid-template-columns: 1fr minmax(0, 420px);
+    column-gap: 24px;
   }
 
-  ${media.tablet} {
-    grid-template-columns: 1fr minmax(0, 440px);
+  /* Below lg: single column stacked */
+  @media (max-width: 991px) {
+    display: flex;
+    flex-direction: column;
   }
 `;
 
 const TextColumn = styled.div`
   display: flex;
   flex-direction: column;
-
-  ${media.mobile} {
-    order: 1;
-    width: 100%;
-  }
 `;
 
 const LabelWrap = styled.div`
   margin-bottom: 36px;
 
-  ${media.mobile} {
+  @media (max-width: 991px) {
     margin-bottom: 0;
   }
 `;
@@ -81,29 +76,24 @@ const Headline = styled.h1`
   font-style: normal;
   margin-top: 150px;
 
-  ${media.mobile} {
+  @media (max-width: 991px) {
     margin-top: 26px;
-  }
-
-  ${media.tablet} {
-    margin-top: 80px;
   }
 `;
 
 const HeadlineLineWhite = styled.span`
   display: block;
-  font-size: clamp(114px, 9.58vw, 138px);
+  font-size: clamp(80px, 9.58vw, 138px);
   line-height: 1.044;
   color: ${colors.cream};
 
-  ${media.mobile} {
+  @media (max-width: 767px) {
     font-size: 66px;
     line-height: 70px;
   }
 
-  ${media.tablet} {
+  @media (min-width: 992px) and (max-width: 1199px) {
     font-size: clamp(80px, 9vw, 120px);
-    line-height: 1.04;
   }
 `;
 
@@ -111,21 +101,23 @@ const HeadlineLinePink = styled(HeadlineLineWhite)`
   color: ${colors.pink};
 `;
 
-const BlobMobileWrap = styled.div`
+/* ─── Blob S — shown below 992 px (mobile + narrow tablet) ─────────────── */
+const BlobNarrowWrap = styled.div`
   display: none;
   justify-content: center;
-  margin-top: 17px;
-  filter: drop-shadow(0px 10px 8px rgba(8, 46, 38, 0.42));
+  margin-top: 20px;
+  filter: drop-shadow(0px 14px 10px rgba(8, 46, 38, 0.42));
 
-  ${media.mobile} {
+  @media (max-width: 991px) {
     display: flex;
   }
 `;
 
-const DesktopBr = styled.br`
-  ${media.mobile} {
-    display: none;
-  }
+const BlobNarrowInner = styled.div`
+  position: relative;
+  width: clamp(218px, 55vw, 380px);
+  /* Maintain 590:780 aspect ratio */
+  aspect-ratio: 590 / 780;
 `;
 
 const BodyText = styled.p`
@@ -137,89 +129,46 @@ const BodyText = styled.p`
   margin-top: 59px;
   max-width: 520px;
 
-  ${media.mobile} {
+  @media (max-width: 991px) {
     font-size: 18px;
     line-height: 28px;
     margin-top: 32px;
     max-width: 100%;
   }
-
-  ${media.tablet} {
-    font-size: 18px;
-    line-height: 28px;
-    margin-top: 48px;
-    max-width: 480px;
-  }
 `;
 
+/* ─── CTA row — flex-wrap prevents overlap at all widths ───────────────── */
 const CtaRow = styled.div`
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 0;
   margin-top: 76px;
-  position: relative;
 
-  ${media.mobile} {
+  /* Below 992 px: vertical stack */
+  @media (max-width: 991px) {
     flex-direction: column;
+    align-items: stretch;
     gap: 16px;
     margin-top: 40px;
-    align-items: stretch;
-  }
-
-  ${media.tablet} {
-    margin-top: 48px;
-    flex-wrap: wrap;
-    gap: 16px;
   }
 `;
 
+/* Desktop CTA group (≥992 px) — primary blob + overlapping secondary */
 const DesktopCtaGroup = styled.div`
   display: flex;
   align-items: center;
 
-  ${media.mobile} {
-    display: none;
-  }
-
-  ${media.tablet} {
+  @media (max-width: 991px) {
     display: none;
   }
 `;
 
-const SecondaryCtaWrap = styled.div`
-  position: relative;
-  width: 291px;
-  height: 77px;
-  margin-left: -40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  a {
-    position: relative;
-    z-index: 1;
-    font-family: ${fonts.body};
-    font-weight: 600;
-    font-size: 16px;
-    line-height: 22px;
-    color: ${colors.cream};
-    white-space: nowrap;
-  }
-
-  ${media.mobile} {
-    display: none;
-  }
-
-  ${media.tablet} {
-    display: none;
-  }
-`;
-
-const MobilePrimaryBlobWrap = styled.div`
+/* Mobile/narrow CTA wrappers (<992 px) — full-width blobs */
+const NarrowBlobWrap = styled.div`
   display: none;
   position: relative;
-  width: 342px;
+  width: 100%;
   height: 56px;
   align-items: center;
   justify-content: center;
@@ -231,20 +180,53 @@ const MobilePrimaryBlobWrap = styled.div`
     font-weight: 600;
     font-size: 15px;
     line-height: 20px;
-    color: ${colors.darkGreen};
     text-align: center;
+    text-decoration: none;
   }
 
-  ${media.mobile} {
+  @media (max-width: 991px) {
     display: flex;
-    width: 100%;
   }
 `;
 
-const MobileSecondaryBlobWrap = styled(MobilePrimaryBlobWrap)`
+const NarrowPrimaryWrap = styled(NarrowBlobWrap)`
+  a { color: ${colors.darkGreen}; }
+`;
+
+const NarrowSecondaryWrap = styled(NarrowBlobWrap)`
   a {
     color: ${colors.cream};
     white-space: pre-wrap;
+  }
+`;
+
+/* ─── Blob S — desktop right column (≥992 px) ──────────────────────────── */
+const BlobDesktopWrap = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 66px;
+  filter: drop-shadow(0px 28px 21px rgba(8, 46, 38, 0.42));
+
+  @media (max-width: 991px) {
+    display: none;
+  }
+
+  @media (min-width: 992px) and (max-width: 1199px) {
+    padding-top: 40px;
+  }
+`;
+
+const BlobDesktopImgWrap = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 590px;
+  aspect-ratio: 590 / 780;
+`;
+
+const DesktopBr = styled.br`
+  @media (max-width: 991px) {
+    display: none;
   }
 `;
 
@@ -260,37 +242,20 @@ const ScrollHint = styled.p`
   right: 64px;
   bottom: 58px;
 
-  ${media.mobile} {
+  @media (max-width: 767px) {
     font-size: 10px;
     line-height: 14px;
     letter-spacing: 1.4px;
     right: 24px;
     bottom: 53px;
   }
-`;
 
-const BlobDesktopWrap = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 66px;
-  filter: drop-shadow(0px 28px 21px rgba(8, 46, 38, 0.42));
-
-  ${media.mobile} {
-    display: none;
-  }
-
-  ${media.tablet} {
-    padding-top: 40px;
+  @media (min-width: 768px) and (max-width: 991px) {
+    right: 32px;
   }
 `;
 
-const BlobDesktopImgWrap = styled.div`
-  position: relative;
-  width: 100%;
-  max-width: 590px;
-  aspect-ratio: 590 / 780;
-`;
+/* ─── Component ─────────────────────────────────────────────────────────── */
 
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -302,18 +267,17 @@ export function HeroSection() {
     const section = sectionRef.current;
     if (!section) return;
 
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const isMobile = window.matchMedia('(max-width: 991px)').matches;
 
-    const label     = section.querySelector('[data-hero-label]');
-    const headline  = section.querySelector('[data-hero-headline]');
-    const lines     = headline ? headline.querySelectorAll('span') : [];
-    const body      = section.querySelector('[data-hero-body]');
-    const cta       = section.querySelector('[data-hero-cta]');
-    const blobD     = section.querySelector('[data-hero-blob-d]');
-    const blobM     = section.querySelector('[data-hero-blob-m]');
-    const hint      = section.querySelector('[data-hero-hint]');
+    const label    = section.querySelector('[data-hero-label]');
+    const headline = section.querySelector('[data-hero-headline]');
+    const lines    = headline ? headline.querySelectorAll('span') : [];
+    const body     = section.querySelector('[data-hero-body]');
+    const cta      = section.querySelector('[data-hero-cta]');
+    const blobD    = section.querySelector('[data-hero-blob-d]');
+    const blobN    = section.querySelector('[data-hero-blob-n]'); // narrow (mobile/tablet)
+    const hint     = section.querySelector('[data-hero-hint]');
 
-    // ── Page-load entrance timeline ──────────────────────────────────────────
     const tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
 
     tl.from(label, { opacity: 0, y: -10, duration: 0.5 })
@@ -324,15 +288,14 @@ export function HeroSection() {
         stagger: 0.13,
       }, '-=0.25');
 
-    // Mobile blob enters between headline and body
-    if (isMobile && blobM) {
-      tl.from(blobM, { opacity: 0, scale: 0.94, duration: 0.6 }, '-=0.1');
+    // Narrow blob enters between headline and body
+    if (isMobile && blobN) {
+      tl.from(blobN, { opacity: 0, scale: 0.94, duration: 0.6 }, '-=0.1');
     }
 
     tl.from(body, { opacity: 0, y: isMobile ? 16 : 26, duration: 0.6 }, '-=0.25')
       .from(cta,  { opacity: 0, y: isMobile ? 12 : 18, duration: 0.5 }, '-=0.3');
 
-    // Desktop blob: opacity + scale + subtle rotation (runs in parallel)
     if (!isMobile && blobD) {
       gsap.from(blobD, {
         opacity: 0,
@@ -345,7 +308,6 @@ export function HeroSection() {
       });
     }
 
-    // ── Scroll-hint fade ─────────────────────────────────────────────────────
     if (hint) {
       gsap.to(hint, {
         opacity: 0,
@@ -357,103 +319,87 @@ export function HeroSection() {
         },
       });
     }
-
-    // Pointer tilt is now handled inside BlobSCanvas/BlobSMesh via useFrame.
-    // The GSAP cursor parallax on the static SVG container is removed in Phase 4.
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
     <Section ref={sectionRef}>
-      <HeroGrid>
-        <TextColumn>
-          <LabelWrap data-hero-label="">
-            <SectionLabel>{`01  /  RAW IDEA`}</SectionLabel>
-          </LabelWrap>
+      <SiteContainer>
+        <HeroGrid>
+          <TextColumn>
+            <LabelWrap data-hero-label="">
+              <SectionLabel>{`01  /  RAW IDEA`}</SectionLabel>
+            </LabelWrap>
 
-          <Headline data-hero-headline="">
-            <HeadlineLineWhite>FROM IDEA</HeadlineLineWhite>
-            <HeadlineLinePink>TO PRODUCT.</HeadlineLinePink>
-          </Headline>
+            <Headline data-hero-headline="">
+              <HeadlineLineWhite>FROM IDEA</HeadlineLineWhite>
+              <HeadlineLinePink>TO PRODUCT.</HeadlineLinePink>
+            </Headline>
 
-          {/* Blob S — mobile (between headline and body) */}
-          <BlobMobileWrap data-hero-blob-m="">
-            {/* Sized wrapper required so the canvas has explicit dimensions */}
-            <div style={{ position: 'relative', width: 218, height: 289 }}>
-              <BlobSCanvas reducedMotion={reducedMotion} />
-            </div>
-          </BlobMobileWrap>
+            {/* Blob S — narrow screens (mobile + tablet, <992 px) */}
+            <BlobNarrowWrap data-hero-blob-n="">
+              <BlobNarrowInner>
+                <BlobSCanvas reducedMotion={reducedMotion} />
+              </BlobNarrowInner>
+            </BlobNarrowWrap>
 
-          <BodyText data-hero-body="">
-            I connect product thinking, AI, design and technology
-            <DesktopBr />
-            to turn raw ideas into real products.
-          </BodyText>
+            <BodyText data-hero-body="">
+              I connect product thinking, AI, design and technology{' '}
+              <DesktopBr />
+              to turn raw ideas into real products.
+            </BodyText>
 
-          <CtaRow data-hero-cta="">
-            <DesktopCtaGroup>
-              <BlobButton
-                href="#contact"
-                blobSrc="/assets/cta-start-conversation.svg"
-                textColor={colors.white}
-                width={230}
-                height={70}
-                fontSize={16}
-              >
-                Start a conversation
-              </BlobButton>
+            <CtaRow data-hero-cta="">
+              {/* Desktop (≥992 px): primary blob + overlapping secondary blob */}
+              <DesktopCtaGroup>
+                <BlobButton
+                  href="#contact"
+                  blobSrc="/assets/cta-start-conversation.svg"
+                  textColor={colors.white}
+                  width={230}
+                  height={70}
+                  fontSize={16}
+                >
+                  Start a conversation
+                </BlobButton>
 
-              <SecondaryCtaWrap>
+                <SecondaryExploreCta href="#proof" />
+              </DesktopCtaGroup>
+
+              {/* Narrow (<992 px): full-width stacked blobs */}
+              <NarrowPrimaryWrap>
                 <Image
-                  src="/assets/cta-explore-work-light.svg"
+                  src="/assets/cta-primary-mobile.svg"
                   alt=""
                   aria-hidden={true}
                   fill
                   unoptimized
                   style={{ objectFit: 'fill', pointerEvents: 'none' }}
                 />
-                <a href="#proof">Explore selected work &nbsp;↗</a>
-              </SecondaryCtaWrap>
-            </DesktopCtaGroup>
+                <a href="#contact">Start a conversation</a>
+              </NarrowPrimaryWrap>
 
-            <MobilePrimaryBlobWrap>
-              <Image
-                src="/assets/cta-primary-mobile.svg"
-                alt=""
-                aria-hidden={true}
-                fill
-                unoptimized
-                style={{ objectFit: 'fill', pointerEvents: 'none' }}
-              />
-              <a href="#contact">Start a conversation</a>
-            </MobilePrimaryBlobWrap>
+              <NarrowSecondaryWrap>
+                <Image
+                  src="/assets/cta-secondary-mobile.svg"
+                  alt=""
+                  aria-hidden={true}
+                  fill
+                  unoptimized
+                  style={{ objectFit: 'fill', pointerEvents: 'none' }}
+                />
+                <a href="#proof">{`Explore selected work  ↗`}</a>
+              </NarrowSecondaryWrap>
+            </CtaRow>
+          </TextColumn>
 
-            <MobileSecondaryBlobWrap>
-              <Image
-                src="/assets/cta-secondary-mobile.svg"
-                alt=""
-                aria-hidden={true}
-                fill
-                unoptimized
-                style={{ objectFit: 'fill', pointerEvents: 'none' }}
-              />
-              <a href="#proof">{`Explore selected work  ↗`}</a>
-            </MobileSecondaryBlobWrap>
-          </CtaRow>
-        </TextColumn>
-
-        {/* Blob S — desktop right column (3D canvas via dynamic import) */}
-        <BlobDesktopWrap data-hero-blob-d="">
-          <BlobDesktopImgWrap>
-            {/*
-             * BlobSCanvas fills BlobDesktopImgWrap (position:relative, aspect-ratio:590/780).
-             * The static SVG is rendered as the permanent under-layer; the canvas is
-             * transparent so the SVG shows if WebGL is unavailable.
-             * The GSAP entrance on data-hero-blob-d animates this entire wrapper.
-             */}
-            <BlobSCanvas reducedMotion={reducedMotion} />
-          </BlobDesktopImgWrap>
-        </BlobDesktopWrap>
-      </HeroGrid>
+          {/* Blob S — desktop right column (≥992 px) */}
+          <BlobDesktopWrap data-hero-blob-d="">
+            <BlobDesktopImgWrap>
+              <BlobSCanvas reducedMotion={reducedMotion} />
+            </BlobDesktopImgWrap>
+          </BlobDesktopWrap>
+        </HeroGrid>
+      </SiteContainer>
 
       <ScrollHint data-hero-hint="">SCROLL TO SHAPE THE IDEA</ScrollHint>
     </Section>

@@ -120,9 +120,11 @@ export function BlobSMesh({ enablePointer, isMobile }: BlobSMeshProps) {
   return (
     <mesh ref={meshRef} geometry={geometry}>
       {/* Matte pink material — colour from design tokens (#FF6FAE) */}
+      {/* Matte pink — no emissive. Ambient at 1.0 in BlobSCanvas ensures
+          no face can be darker than the material base colour (#FF6FAE). */}
       <meshStandardMaterial
         color="#FF6FAE"
-        roughness={0.75}
+        roughness={0.72}
         metalness={0}
         side={THREE.FrontSide}
       />
