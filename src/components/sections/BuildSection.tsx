@@ -1,7 +1,11 @@
 'use client';
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { gsap } from '@/lib/gsap';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 const Section = styled.section`
   background-color: ${colors.darkGreenAlt};
@@ -43,8 +47,6 @@ const ContentGrid = styled.div`
   }
 `;
 
-/* position: relative + z-index: 1 ensures the text column paints above the rotated
-   slabs in the right column, which have negative left offsets that overlap this column. */
 const TextColumn = styled.div`
   display: flex;
   flex-direction: column;
@@ -65,9 +67,7 @@ const Headline = styled.h2`
   }
 `;
 
-/* Figma: pink headline group (BUILT/TO BE REAL) starts 53 px below white group bottom
-   Desktop: white ends at 180+2×128=436, pink starts at 489 → gap 53 px
-   Mobile:  white ends at 110+2×62=234,  pink starts at 260 → gap 26 px */
+/* Figma: pink headline group (BUILT/TO BE REAL) — 53 px gap desktop, 26 px mobile */
 const HeadlinePink = styled.h2`
   margin-top: 53px;
 
@@ -121,7 +121,6 @@ const BodyText = styled.p`
   }
 `;
 
-/* Assembly slabs — three overlapping rotated panels */
 const AssemblyWrap = styled.div`
   position: relative;
   height: 1020px;
@@ -206,6 +205,7 @@ const slabs = [
   {
     bg: colors.darkGreen,
     rotation: '10deg',
+    finalRotation: 10,
     desktopLeft: '-122px',
     desktopTop: '55px',
     mobileLeft: '-58px',
@@ -221,6 +221,7 @@ const slabs = [
   {
     bg: colors.cream,
     rotation: '3deg',
+    finalRotation: 3,
     desktopLeft: '5px',
     desktopTop: '135px',
     mobileLeft: '2px',
@@ -236,6 +237,7 @@ const slabs = [
   {
     bg: colors.pink,
     rotation: '-4deg',
+    finalRotation: -4,
     desktopLeft: '76px',
     desktopTop: '176px',
     mobileLeft: '36px',
@@ -250,31 +252,116 @@ const slabs = [
   },
 ];
 
+// Per-slab starting offsets for the flat→spread animation.
+// Slabs converge from a tighter cluster toward their Phase 2 spread positions.
+const slabDesktopFrom = [
+  { x:  50, y: 40 },
+  { x:   0, y: 22 },
+  { x: -30, y: 32 },
+] as const;
+const slabMobileFrom = [
+  { x:  24, y: 20 },
+  { x:   0, y: 12 },
+  { x: -14, y: 16 },
+] as const;
+
 export function BuildSection() {
+  const sectionRef  = useRef<HTMLElement>(null);
+  const assemblyRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
+
+  useGSAP(() => {
+    if (reducedMotion) return;
+
+    const section = sectionRef.current;
+    const assembly = assemblyRef.current;
+    if (!section || !assembly) return;
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    const label       = section.querySelector('[data-b-label]');
+    const headlineEl  = section.querySelector('[data-b-headline]');
+    const headlineLines = headlineEl ? headlineEl.querySelectorAll('span') : [];
+    const pinkEl      = section.querySelector('[data-b-headline-pink]');
+    const pinkLines   = pinkEl ? pinkEl.querySelectorAll('span') : [];
+    const body        = section.querySelector('[data-b-body]');
+    const slabEls     = Array.from(section.querySelectorAll('[data-b-slab]')) as HTMLElement[];
+    const labelEls    = Array.from(section.querySelectorAll('[data-b-slab-label]')) as HTMLElement[];
+
+    // ── Headline and copy entrance ────────────────────────────────────────────
+    gsap.timeline({
+      scrollTrigger: { trigger: section, start: 'top 78%' },
+      defaults: { ease: 'power2.out' },
+    })
+      .from(label,         { opacity: 0, y: -10,                  duration: 0.45 })
+      .from(headlineLines, { opacity: 0, y: isMobile ? 20 : 34,  duration: isMobile ? 0.5 : 0.65, stagger: 0.1  }, '-=0.25')
+      .from(pinkLines,     { opacity: 0, y: isMobile ? 20 : 34,  duration: isMobile ? 0.5 : 0.65, stagger: 0.1  }, '-=0.2')
+      .from(body,          { opacity: 0, y: isMobile ? 14 : 20,  duration: 0.5 }, '-=0.2');
+
+    // ── Slab spread: flat stack → Phase 2 rotations + positions (scrub) ───────
+    // Uses fromTo with explicit final rotation values so GSAP does not rely on
+    // reading the CSS transform (avoids potential styled-components specificity issues).
+    const fromValues = isMobile ? slabMobileFrom : slabDesktopFrom;
+
+    const slabTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: assembly,
+        start: 'top 72%',
+        end: isMobile ? '+=280' : '+=480',
+        scrub: 1.2,
+      },
+    });
+
+    slabEls.forEach((el, i) => {
+      const from = fromValues[i] ?? { x: 0, y: 20 };
+      slabTl.fromTo(
+        el,
+        { x: from.x, y: from.y, rotation: 0, transformOrigin: 'center center' },
+        { x: 0,       y: 0,     rotation: slabs[i]?.finalRotation ?? 0, ease: 'power2.inOut', duration: 1 },
+        i * 0.1,
+      );
+    });
+
+    // ── Slab labels fade in with their slab ───────────────────────────────────
+    gsap.from(labelEls, {
+      opacity: 0,
+      duration: 0.4,
+      stagger: 0.12,
+      ease: 'power2.out',
+      scrollTrigger: {
+        trigger: assembly,
+        start: 'top 65%',
+      },
+    });
+  }, { scope: sectionRef, dependencies: [reducedMotion] });
+
   return (
-    <Section>
-      <SectionLabel>{`05  /  BUILD`}</SectionLabel>
+    <Section ref={sectionRef}>
+      <div data-b-label="">
+        <SectionLabel>{`05  /  BUILD`}</SectionLabel>
+      </div>
 
       <ContentGrid>
         <TextColumn>
-          <Headline>
+          <Headline data-b-headline="">
             <HeadlineLine>DESIGNED</HeadlineLine>
             <HeadlineLine>TO BE USED.</HeadlineLine>
           </Headline>
-          <HeadlinePink>
+          <HeadlinePink data-b-headline-pink="">
             <HeadlineLinePink>BUILT</HeadlineLinePink>
             <HeadlineLinePink>TO BE REAL.</HeadlineLinePink>
           </HeadlinePink>
 
-          <BodyText>
+          <BodyText data-b-body="">
             The idea becomes an experience people can understand, use and test.
           </BodyText>
         </TextColumn>
 
-        <AssemblyWrap aria-hidden="true">
+        <AssemblyWrap ref={assemblyRef} aria-hidden="true">
           {slabs.map((slab, i) => (
             <Slab
               key={i}
+              data-b-slab=""
               $bg={slab.bg}
               $rotation={slab.rotation}
               $desktopLeft={slab.desktopLeft}
@@ -286,6 +373,7 @@ export function BuildSection() {
           {slabs.map((slab, i) => (
             <SlabLabel
               key={`label-${i}`}
+              data-b-slab-label=""
               $rotation={slab.labelRotation}
               $desktopLeft={slab.labelDesktopLeft}
               $desktopTop={slab.labelDesktopTop}

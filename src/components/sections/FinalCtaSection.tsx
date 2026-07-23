@@ -1,9 +1,13 @@
 'use client';
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
+import { gsap } from '@/lib/gsap';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 /* Figma 19:3: two separate <p> elements (explicit break). Figma 113:3: single <p>, natural wrap. */
 const DesktopBr = styled.br`
@@ -170,8 +174,7 @@ const MobileSecondaryBlobWrap = styled(MobilePrimaryBlobWrap)`
 `;
 
 /* Figma 19:3: Blob S at left:960, top:194, width:461, height:503
-   right = 1440 - 960 - 461 = 19 px from section right edge.
-   Mobile 113:3: left:205, top:385, width:166, height:181 (appears after body text in flow) */
+   right = 1440 - 960 - 461 = 19 px from section right edge. */
 const BlobSFinalWrap = styled.div`
   position: absolute;
   right: 19px;
@@ -197,23 +200,75 @@ const BlobSFinalWrap = styled.div`
 `;
 
 export function FinalCtaSection() {
-  return (
-    <Section id="contact">
-      <SectionLabel>{`07  /  THE NEXT IDEA`}</SectionLabel>
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
 
-      <Headline>
+  useGSAP(() => {
+    if (reducedMotion) return;
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    const label    = section.querySelector('[data-f-label]');
+    const headline = section.querySelector('[data-f-headline]');
+    const lines    = headline ? headline.querySelectorAll('span') : [];
+    const body     = section.querySelector('[data-f-body]');
+    const blob     = section.querySelector('[data-f-blob]');
+    const cta      = section.querySelector('[data-f-cta]');
+
+    // ── Entrance timeline ─────────────────────────────────────────────────────
+    const tl = gsap.timeline({
+      scrollTrigger: { trigger: section, start: 'top 78%' },
+      defaults: { ease: 'power2.out' },
+    });
+
+    tl.from(label, { opacity: 0, y: -10, duration: 0.45 })
+      .from(lines, {
+        opacity: 0,
+        y: isMobile ? 22 : 36,
+        duration: isMobile ? 0.55 : 0.7,
+        stagger: 0.13,
+      }, '-=0.25')
+      .from(body, { opacity: 0, y: isMobile ? 14 : 22, duration: 0.55 }, '-=0.2')
+      .from(cta,  { opacity: 0, y: isMobile ? 12 : 18, duration: 0.5  }, '-=0.25');
+
+    // ── Static Blob S — subtle opacity + scale + small rotation ─────────────
+    // No morph, no scroll-reactivity, no cursor behavior — those belong to Phase 5.
+    if (blob) {
+      gsap.from(blob, {
+        opacity: 0,
+        scale: 0.94,
+        rotation: isMobile ? 1.5 : 2.5,
+        transformOrigin: 'center center',
+        duration: 1.1,
+        ease: 'power2.out',
+        delay: 0.15,
+        scrollTrigger: { trigger: section, start: 'top 78%' },
+      });
+    }
+  }, { scope: sectionRef, dependencies: [reducedMotion] });
+
+  return (
+    <Section id="contact" ref={sectionRef}>
+      <div data-f-label="">
+        <SectionLabel>{`07  /  THE NEXT IDEA`}</SectionLabel>
+      </div>
+
+      <Headline data-f-headline="">
         <HeadlineLine>HAVE AN IDEA</HeadlineLine>
         <HeadlineLine>WORTH BUILDING?</HeadlineLine>
       </Headline>
 
-      <BodyText>
+      <BodyText data-f-body="">
         Bring the idea, problem or opportunity.
         <DesktopBr />
         Let&apos;s find out what product should exist.
       </BodyText>
 
-      {/* Blob S — desktop: absolute (position ignores DOM order), mobile: inline after body text */}
-      <BlobSFinalWrap aria-hidden="true">
+      {/* Blob S — desktop: absolute (ignores DOM order), mobile: inline after body text */}
+      <BlobSFinalWrap data-f-blob="" aria-hidden="true">
         <Image
           src="/assets/blob-s-final.svg"
           alt=""
@@ -223,8 +278,7 @@ export function FinalCtaSection() {
         />
       </BlobSFinalWrap>
 
-      <CtaBlock>
-        {/* Desktop CTAs */}
+      <CtaBlock data-f-cta="">
         <DesktopCtaGroup>
           <BlobButton
             href="mailto:jan@stefanko.tech"
@@ -242,7 +296,6 @@ export function FinalCtaSection() {
           </SecondaryCtaText>
         </DesktopCtaGroup>
 
-        {/* Mobile primary CTA */}
         <MobilePrimaryBlobWrap>
           <Image
             src="/assets/cta-primary-mobile.svg"
@@ -255,7 +308,6 @@ export function FinalCtaSection() {
           <a href="mailto:jan@stefanko.tech">Start a conversation</a>
         </MobilePrimaryBlobWrap>
 
-        {/* Mobile secondary CTA */}
         <MobileSecondaryBlobWrap>
           <Image
             src="/assets/cta-secondary-mobile.svg"

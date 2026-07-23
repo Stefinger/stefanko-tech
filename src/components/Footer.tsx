@@ -1,7 +1,11 @@
 'use client';
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
+import { gsap } from '@/lib/gsap';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 const FooterEl = styled.footer`
   background-color: ${colors.darkGreen};
@@ -79,9 +83,32 @@ const FooterTagline = styled.p`
 `;
 
 export function Footer() {
+  const footerRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
+
+  useGSAP(() => {
+    if (reducedMotion) return;
+
+    const footer = footerRef.current;
+    if (!footer) return;
+
+    const rule     = footer.querySelector('[data-ft-rule]');
+    const left     = footer.querySelector('[data-ft-left]');
+    const tagline  = footer.querySelector('[data-ft-tagline]');
+
+    // Footer elements fade in together as the footer enters the viewport.
+    gsap.timeline({
+      scrollTrigger: { trigger: footer, start: 'top 92%' },
+      defaults: { ease: 'power2.out' },
+    })
+      .from(rule,    { opacity: 0, scaleX: 0, transformOrigin: 'left center', duration: 0.6 })
+      .from(left,    { opacity: 0, y: 10, duration: 0.45 }, '-=0.2')
+      .from(tagline, { opacity: 0, y: 10, duration: 0.45 }, '<0.1');
+  }, { scope: footerRef, dependencies: [reducedMotion] });
+
   return (
-    <FooterEl>
-      <FooterRule>
+    <FooterEl ref={footerRef}>
+      <FooterRule data-ft-rule="">
         <Image
           src="/assets/footer-rule.svg"
           alt=""
@@ -93,7 +120,7 @@ export function Footer() {
         />
       </FooterRule>
       <FooterRow>
-        <FooterLeft>
+        <FooterLeft data-ft-left="">
           <FooterBlobSWrap>
             <Image
               src="/assets/blob-s-footer-logo.svg"
@@ -105,7 +132,7 @@ export function Footer() {
           </FooterBlobSWrap>
           <FooterWordmark>stefanko.tech</FooterWordmark>
         </FooterLeft>
-        <FooterTagline>{`FROM IDEA TO PRODUCT.  /  BUILD IN PUBLIC.`}</FooterTagline>
+        <FooterTagline data-ft-tagline="">{`FROM IDEA TO PRODUCT.  /  BUILD IN PUBLIC.`}</FooterTagline>
       </FooterRow>
     </FooterEl>
   );

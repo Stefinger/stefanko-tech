@@ -1,9 +1,13 @@
 'use client';
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
+import { gsap } from '@/lib/gsap';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 /* Section 06 — Proof Lives in Reality
    PLACEHOLDER: All proof cards contain placeholder content only.
@@ -16,7 +20,6 @@ const Section = styled.section`
   padding-top: 66px;
   padding-left: 64px;
   padding-right: 64px;
-  /* Figma: CTA ends at 1066, section is 1132 → 66 px below. */
   padding-bottom: 66px;
 
   ${media.mobile} {
@@ -24,7 +27,6 @@ const Section = styled.section`
     padding-top: 48px;
     padding-left: 24px;
     padding-right: 24px;
-    /* Figma mobile: CTA ends at 1086, section is 1130 → 44 px below. */
     padding-bottom: 44px;
   }
 
@@ -40,11 +42,9 @@ const Headline = styled.h2`
   font-weight: 400;
   font-style: normal;
   color: ${colors.darkGreen};
-  /* Figma: headline at 160; label bottom ≈ 84 → gap 76 px. */
   margin-top: 76px;
 
   ${media.mobile} {
-    /* Figma mobile: headline at 110; label bottom ≈ 66 → gap 44 px. */
     margin-top: 44px;
   }
 
@@ -75,32 +75,27 @@ const BodyText = styled.p`
   font-size: 20px;
   line-height: 30px;
   color: ${colors.darkGreen};
-  /* Figma: body at 440; headline bottom 408 → gap 32 px. */
   margin-top: 32px;
 
   ${media.mobile} {
     font-size: 18px;
     line-height: 28px;
-    /* Figma mobile: body at 252; headline bottom 234 → gap 18 px. */
     margin-top: 18px;
   }
 `;
 
-/* Desktop proof card grid */
 const CardsGrid = styled.div`
   display: grid;
   grid-template-columns: 790px 1fr;
   grid-template-rows: 200px 200px;
   column-gap: 30px;
   row-gap: 30px;
-  /* Figma: cards at 560; body bottom 470 → gap 90 px. */
   margin-top: 90px;
 
   ${media.mobile} {
     display: flex;
     flex-direction: column;
     gap: 30px;
-    /* Figma mobile: cards at 340; body bottom 280 → gap 60 px. */
     margin-top: 60px;
   }
 
@@ -267,7 +262,6 @@ const BuildPublicSubLabel = styled.p`
 `;
 
 const DesktopCtaWrap = styled.div`
-  /* Figma: CTA at 1010; cards bottom 990 → gap 20 px. */
   margin-top: 20px;
 
   ${media.mobile} {
@@ -277,7 +271,6 @@ const DesktopCtaWrap = styled.div`
 
 const MobileCtaWrap = styled.div`
   display: none;
-  /* Figma mobile: CTA at 1030; cards bottom 1000 → gap 30 px. */
   margin-top: 30px;
 
   ${media.mobile} {
@@ -310,20 +303,81 @@ const MobileCtaBlobWrap = styled.div`
 `;
 
 export function ProofSection() {
-  return (
-    <Section id="proof">
-      <SectionLabel color={colors.darkGreen}>{`06  /  REAL PROOF`}</SectionLabel>
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
 
-      <Headline>
+  useGSAP(() => {
+    if (reducedMotion) return;
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    const label    = section.querySelector('[data-p-label]');
+    const headline = section.querySelector('[data-p-headline]');
+    const lines    = headline ? headline.querySelectorAll('span') : [];
+    const body     = section.querySelector('[data-p-body]');
+    const cards    = Array.from(section.querySelectorAll('[data-p-card]')) as HTMLElement[];
+    const cta      = section.querySelector('[data-p-cta]');
+
+    // ── Label + headline + body entrance ─────────────────────────────────────
+    gsap.timeline({
+      scrollTrigger: { trigger: section, start: 'top 78%' },
+      defaults: { ease: 'power2.out' },
+    })
+      .from(label, { opacity: 0, y: -10, duration: 0.45 })
+      .from(lines, { opacity: 0, y: isMobile ? 22 : 36, duration: isMobile ? 0.5 : 0.65, stagger: 0.1 }, '-=0.25')
+      .from(body,  { opacity: 0, y: isMobile ? 14 : 20, duration: 0.5 }, '-=0.2');
+
+    // ── Proof cards stagger in ────────────────────────────────────────────────
+    // Cards enter sequentially with a small vertical offset.
+    // The featured card (first) gets a slightly larger entrance.
+    if (cards.length > 0) {
+      gsap.from(cards, {
+        opacity: 0,
+        y: isMobile ? 22 : 32,
+        duration: isMobile ? 0.5 : 0.6,
+        stagger: 0.14,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: cards[0],
+          start: 'top 80%',
+        },
+      });
+    }
+
+    // ── CTA entrance after cards ──────────────────────────────────────────────
+    if (cta) {
+      gsap.from(cta, {
+        opacity: 0,
+        y: isMobile ? 14 : 18,
+        duration: 0.5,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: cta,
+          start: 'top 88%',
+        },
+      });
+    }
+  }, { scope: sectionRef, dependencies: [reducedMotion] });
+
+  return (
+    <Section id="proof" ref={sectionRef}>
+      <div data-p-label="">
+        <SectionLabel color={colors.darkGreen}>{`06  /  REAL PROOF`}</SectionLabel>
+      </div>
+
+      <Headline data-p-headline="">
         <HeadlineLine>PROOF LIVES</HeadlineLine>
         <HeadlineLine>IN REALITY.</HeadlineLine>
       </Headline>
 
-      <BodyText>Real products. Real progress. Real lessons.</BodyText>
+      <BodyText data-p-body="">Real products. Real progress. Real lessons.</BodyText>
 
       <CardsGrid>
         {/* PLACEHOLDER — replace with real product screenshot before launch */}
-        <FeaturedCard>
+        <FeaturedCard data-p-card="">
           <CardWorkLabel>{`SELECTED WORK  /  01`}</CardWorkLabel>
           <div>
             <CardHeadline>
@@ -337,7 +391,7 @@ export function ProofSection() {
         </FeaturedCard>
 
         {/* PLACEHOLDER — replace with real hardware+software prototype asset */}
-        <HardwareCard>
+        <HardwareCard data-p-card="">
           <HardwareHeadline>
             HARDWARE
             <br />
@@ -347,7 +401,7 @@ export function ProofSection() {
         </HardwareCard>
 
         {/* PLACEHOLDER — replace with real build-in-public process image */}
-        <BuildPublicCard>
+        <BuildPublicCard data-p-card="">
           <BuildPublicHeadline>
             BUILD IN
             <br />
@@ -357,7 +411,7 @@ export function ProofSection() {
         </BuildPublicCard>
       </CardsGrid>
 
-      <DesktopCtaWrap>
+      <DesktopCtaWrap data-p-cta="">
         <BlobButton
           href="#proof"
           blobSrc="/assets/cta-explore-work-dark.svg"
@@ -370,7 +424,7 @@ export function ProofSection() {
         </BlobButton>
       </DesktopCtaWrap>
 
-      <MobileCtaWrap>
+      <MobileCtaWrap data-p-cta="">
         <MobileCtaBlobWrap>
           <Image
             src="/assets/cta-explore-work-dark-mobile.svg"
