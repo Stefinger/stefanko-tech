@@ -1,5 +1,6 @@
 'use client';
 import { useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
@@ -8,6 +9,13 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+
+// 3D canvas loaded client-side only. The loading fallback keeps the static SVG
+// visible until the component code and WebGL context are ready.
+const BlobSCanvas = dynamic(
+  () => import('@/components/canvas/BlobSCanvas').then(m => m.BlobSCanvas),
+  { ssr: false }
+);
 
 const Section = styled.section`
   background-color: ${colors.darkGreen};
@@ -295,7 +303,6 @@ export function HeroSection() {
     if (!section) return;
 
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    const isDesktop = window.matchMedia('(min-width: 1101px) and (hover: hover)').matches;
 
     const label     = section.querySelector('[data-hero-label]');
     const headline  = section.querySelector('[data-hero-headline]');
@@ -351,22 +358,8 @@ export function HeroSection() {
       });
     }
 
-    // ── Desktop cursor parallax on static Blob S ──────────────────────────────
-    if (isDesktop && blobD) {
-      const onMove = (e: MouseEvent) => {
-        const cx = window.innerWidth  / 2;
-        const cy = window.innerHeight / 2;
-        gsap.to(blobD, {
-          x: ((e.clientX - cx) / cx) * 14,
-          y: ((e.clientY - cy) / cy) *  8,
-          duration: 0.9,
-          ease: 'power1.out',
-          overwrite: 'auto',
-        });
-      };
-      window.addEventListener('mousemove', onMove);
-      return () => window.removeEventListener('mousemove', onMove);
-    }
+    // Pointer tilt is now handled inside BlobSCanvas/BlobSMesh via useFrame.
+    // The GSAP cursor parallax on the static SVG container is removed in Phase 4.
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
@@ -384,14 +377,10 @@ export function HeroSection() {
 
           {/* Blob S — mobile (between headline and body) */}
           <BlobMobileWrap data-hero-blob-m="">
-            <Image
-              src="/assets/blob-s-hero-mobile.svg"
-              alt="Stefanko.tech signature S"
-              width={218}
-              height={289}
-              unoptimized
-              style={{ objectFit: 'contain' }}
-            />
+            {/* Sized wrapper required so the canvas has explicit dimensions */}
+            <div style={{ position: 'relative', width: 218, height: 289 }}>
+              <BlobSCanvas reducedMotion={reducedMotion} />
+            </div>
           </BlobMobileWrap>
 
           <BodyText data-hero-body="">
@@ -452,16 +441,16 @@ export function HeroSection() {
           </CtaRow>
         </TextColumn>
 
-        {/* Blob S — desktop right column */}
+        {/* Blob S — desktop right column (3D canvas via dynamic import) */}
         <BlobDesktopWrap data-hero-blob-d="">
           <BlobDesktopImgWrap>
-            <Image
-              src="/assets/blob-s-hero.svg"
-              alt="Stefanko.tech signature S"
-              fill
-              unoptimized
-              style={{ objectFit: 'contain' }}
-            />
+            {/*
+             * BlobSCanvas fills BlobDesktopImgWrap (position:relative, aspect-ratio:590/780).
+             * The static SVG is rendered as the permanent under-layer; the canvas is
+             * transparent so the SVG shows if WebGL is unavailable.
+             * The GSAP entrance on data-hero-blob-d animates this entire wrapper.
+             */}
+            <BlobSCanvas reducedMotion={reducedMotion} />
           </BlobDesktopImgWrap>
         </BlobDesktopWrap>
       </HeroGrid>
