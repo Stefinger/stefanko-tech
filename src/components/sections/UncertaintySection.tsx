@@ -1,8 +1,12 @@
 'use client';
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { gsap, ScrollTrigger } from '@/lib/gsap';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 const Section = styled.section`
   background-color: ${colors.cream};
@@ -88,12 +92,6 @@ const BodyText = styled.p`
   }
 `;
 
-/* Question blobs: absolutely positioned within the section.
-   Desktop positions are from Figma 19:3 at 1440px width.
-   Mobile positions are from Figma 113:3 at 390px width.
-   We use percentage-based left to allow fluid scaling between breakpoints.
-   Top values are set at approximate pixel positions. */
-
 const BlobsArea = styled.div`
   position: absolute;
   inset: 0;
@@ -115,15 +113,14 @@ const QuestionBlobWrap = styled.div<QuestionBlobProps>`
   justify-content: center;
 
   left: ${({ $desktopLeft }) => $desktopLeft};
-  top: ${({ $desktopTop }) => $desktopTop};
+  top:  ${({ $desktopTop  }) => $desktopTop};
 
   ${media.mobile} {
     left: ${({ $mobileLeft }) => $mobileLeft};
-    top: ${({ $mobileTop }) => $mobileTop};
+    top:  ${({ $mobileTop  }) => $mobileTop};
   }
 `;
 
-/* Wrapper for desktop question blob — hidden on mobile */
 const DesktopBlobWrap = styled.div<{ $rotation: string }>`
   position: relative;
   width: 280px;
@@ -136,7 +133,6 @@ const DesktopBlobWrap = styled.div<{ $rotation: string }>`
   }
 `;
 
-/* Wrapper for mobile question blob — hidden on desktop */
 const MobileBlobWrap = styled.div<{ $rotation: string }>`
   display: none;
   position: relative;
@@ -277,19 +273,144 @@ const questions = [
   },
 ];
 
+// Deterministic per-blob entrance offsets (y) and scatter destinations
+const blobEntranceY  = [22, -18, 20, -16, 18, -20] as const;
+const blobScatterX   = [-38,  48, -44,  52, -36,  44] as const;
+const blobScatterY   = [-52,  42, -42,  54, -58,  50] as const;
+// Drift: alternating up/down with different durations
+const blobDriftAmp   = [ 5,   -5,   5,  -5,   5,  -5] as const;
+const blobDriftDur   = [2.1, 2.5, 1.9, 2.3, 2.6, 2.0] as const;
+const blobDriftDelay = [0,   0.3, 0.6, 0.9, 0.45, 0.15] as const;
+
 export function UncertaintySection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
+
+  useGSAP(() => {
+    if (reducedMotion) return;
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    const label    = section.querySelector('[data-u-label]');
+    const headline = section.querySelector('[data-u-headline]');
+    const lines    = headline ? headline.querySelectorAll('span') : [];
+    const body     = section.querySelector('[data-u-body]');
+    const blobs    = Array.from(section.querySelectorAll('[data-u-blob]')) as HTMLElement[];
+
+    const driftAmp   = isMobile ? 3 : 5;
+    const scatterMul = isMobile ? 0.55 : 1;
+
+    // Track drift tweens so they can be killed before scatter
+    let driftTweens: gsap.core.Tween[] = [];
+
+    // ── Section entrance: label + headline + body ─────────────────────────────
+    gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 78%',
+      },
+      defaults: { ease: 'power2.out' },
+    })
+      .from(label, { opacity: 0, y: -10, duration: 0.5 })
+      .from(lines, { opacity: 0, y: isMobile ? 20 : 36, duration: isMobile ? 0.5 : 0.65, stagger: 0.12 }, '-=0.3')
+      .from(body,  { opacity: 0, y: isMobile ? 14 : 22, duration: 0.55 }, '-=0.25');
+
+    // ── Question blob stagger entrance ────────────────────────────────────────
+    ScrollTrigger.create({
+      trigger: section,
+      start: 'top 72%',
+      once: true,
+      onEnter: () => {
+        const entranceTl = gsap.timeline({
+          onComplete: () => {
+            // Start continuous drift after all blobs have entered
+            driftTweens = blobs.map((el, i) =>
+              gsap.to(el, {
+                y: (blobDriftAmp[i] ?? 5) * (driftAmp / 5),
+                duration: blobDriftDur[i] ?? 2.2,
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut',
+                delay: blobDriftDelay[i] ?? 0,
+              })
+            );
+          },
+        });
+
+        entranceTl.from(blobs, {
+          opacity: 0,
+          y: (i: number) => blobEntranceY[i] ?? 20,
+          scale: 0.88,
+          duration: isMobile ? 0.45 : 0.55,
+          stagger: 0.09,
+          ease: 'back.out(1.3)',
+        });
+      },
+    });
+
+    // ── Blob scatter on section exit ──────────────────────────────────────────
+    ScrollTrigger.create({
+      trigger: section,
+      start: 'bottom 68%',
+      onLeave: () => {
+        driftTweens.forEach(t => t.kill());
+        driftTweens = [];
+
+        gsap.to(blobs, {
+          opacity: 0,
+          x: (i: number) => (blobScatterX[i] ?? -40) * scatterMul,
+          y: (i: number) => (blobScatterY[i] ?? -50) * scatterMul,
+          scale: 0.84,
+          stagger: 0.045,
+          duration: 0.45,
+          ease: 'power2.in',
+          overwrite: 'auto',
+        });
+      },
+      onEnterBack: () => {
+        gsap.to(blobs, {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          scale: 1,
+          stagger: 0.04,
+          duration: 0.35,
+          ease: 'power2.out',
+          overwrite: 'auto',
+          onComplete: () => {
+            // Restart drift
+            driftTweens = blobs.map((el, i) =>
+              gsap.to(el, {
+                y: (blobDriftAmp[i] ?? 5) * (driftAmp / 5),
+                duration: blobDriftDur[i] ?? 2.2,
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut',
+                delay: blobDriftDelay[i] ?? 0,
+                overwrite: 'auto',
+              })
+            );
+          },
+        });
+      },
+    });
+  }, { scope: sectionRef, dependencies: [reducedMotion] });
+
   return (
-    <Section>
-      <LabelWrap>
+    <Section ref={sectionRef}>
+      <LabelWrap data-u-label="">
         <SectionLabel color={colors.darkGreen}>{`02  /  UNCERTAINTY`}</SectionLabel>
       </LabelWrap>
 
-      <Headline>
+      <Headline data-u-headline="">
         <HeadlineLine>AN IDEA IS ONLY</HeadlineLine>
         <HeadlineLine>THE START.</HeadlineLine>
       </Headline>
 
-      <BodyText>
+      <BodyText data-u-body="">
         The first job is not to build. It is to understand
         <br />
         what should be built.
@@ -299,6 +420,7 @@ export function UncertaintySection() {
         {questions.map((q, i) => (
           <QuestionBlobWrap
             key={i}
+            data-u-blob=""
             $desktopLeft={q.desktopLeft}
             $desktopTop={q.desktopTop}
             $mobileLeft={q.mobileLeft}

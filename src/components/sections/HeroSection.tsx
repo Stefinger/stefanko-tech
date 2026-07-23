@@ -1,9 +1,13 @@
 'use client';
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
+import { gsap } from '@/lib/gsap';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 const Section = styled.section`
   background-color: ${colors.darkGreen};
@@ -31,7 +35,6 @@ const Section = styled.section`
 
 const HeroGrid = styled.div`
   display: grid;
-  /* Blob column shrinks below 590px at viewports under ~1440px to preserve text column width */
   grid-template-columns: 1fr minmax(0, min(590px, 45%));
   column-gap: 32px;
   align-items: start;
@@ -71,7 +74,6 @@ const Headline = styled.h1`
   margin-top: 150px;
 
   ${media.mobile} {
-    /* Figma mobile: headline at 148; label bottom ≈ 122 → gap 26 px. */
     margin-top: 26px;
   }
 
@@ -82,7 +84,6 @@ const Headline = styled.h1`
 
 const HeadlineLineWhite = styled.span`
   display: block;
-  /* Fluid: 138px at 1440px, scaling down to fit text column at intermediate widths */
   font-size: clamp(114px, 9.58vw, 138px);
   line-height: 1.044;
   color: ${colors.cream};
@@ -105,7 +106,6 @@ const HeadlineLinePink = styled(HeadlineLineWhite)`
 const BlobMobileWrap = styled.div`
   display: none;
   justify-content: center;
-  /* Figma mobile: blob at 305; headline bottom 288 → gap 17 px. */
   margin-top: 17px;
   filter: drop-shadow(0px 10px 8px rgba(8, 46, 38, 0.42));
 
@@ -114,7 +114,11 @@ const BlobMobileWrap = styled.div`
   }
 `;
 
-/* Figma mobile 113:3: Hero Blob S at 218×289 px centered */
+const DesktopBr = styled.br`
+  ${media.mobile} {
+    display: none;
+  }
+`;
 
 const BodyText = styled.p`
   font-family: ${fonts.body};
@@ -204,7 +208,6 @@ const SecondaryCtaWrap = styled.div`
   }
 `;
 
-
 const MobilePrimaryBlobWrap = styled.div`
   display: none;
   position: relative;
@@ -234,13 +237,6 @@ const MobileSecondaryBlobWrap = styled(MobilePrimaryBlobWrap)`
   a {
     color: ${colors.cream};
     white-space: pre-wrap;
-  }
-`;
-
-/* Figma mobile shows body text as one flowing paragraph; the line break is desktop-only */
-const DesktopBr = styled.br`
-  ${media.mobile} {
-    display: none;
   }
 `;
 
@@ -281,7 +277,6 @@ const BlobDesktopWrap = styled.div`
   }
 `;
 
-/* Responsive wrapper for next/image fill on the desktop Blob S */
 const BlobDesktopImgWrap = styled.div`
   position: relative;
   width: 100%;
@@ -290,21 +285,105 @@ const BlobDesktopImgWrap = styled.div`
 `;
 
 export function HeroSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
+
+  useGSAP(() => {
+    if (reducedMotion) return;
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const isDesktop = window.matchMedia('(min-width: 1101px) and (hover: hover)').matches;
+
+    const label     = section.querySelector('[data-hero-label]');
+    const headline  = section.querySelector('[data-hero-headline]');
+    const lines     = headline ? headline.querySelectorAll('span') : [];
+    const body      = section.querySelector('[data-hero-body]');
+    const cta       = section.querySelector('[data-hero-cta]');
+    const blobD     = section.querySelector('[data-hero-blob-d]');
+    const blobM     = section.querySelector('[data-hero-blob-m]');
+    const hint      = section.querySelector('[data-hero-hint]');
+
+    // ── Page-load entrance timeline ──────────────────────────────────────────
+    const tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
+
+    tl.from(label, { opacity: 0, y: -10, duration: 0.5 })
+      .from(lines, {
+        opacity: 0,
+        y: isMobile ? 22 : 42,
+        duration: isMobile ? 0.55 : 0.7,
+        stagger: 0.13,
+      }, '-=0.25');
+
+    // Mobile blob enters between headline and body
+    if (isMobile && blobM) {
+      tl.from(blobM, { opacity: 0, scale: 0.94, duration: 0.6 }, '-=0.1');
+    }
+
+    tl.from(body, { opacity: 0, y: isMobile ? 16 : 26, duration: 0.6 }, '-=0.25')
+      .from(cta,  { opacity: 0, y: isMobile ? 12 : 18, duration: 0.5 }, '-=0.3');
+
+    // Desktop blob: opacity + scale + subtle rotation (runs in parallel)
+    if (!isMobile && blobD) {
+      gsap.from(blobD, {
+        opacity: 0,
+        scale: 0.94,
+        rotation: 2,
+        transformOrigin: 'center center',
+        duration: 1.0,
+        ease: 'power2.out',
+        delay: 0.1,
+      });
+    }
+
+    // ── Scroll-hint fade ─────────────────────────────────────────────────────
+    if (hint) {
+      gsap.to(hint, {
+        opacity: 0,
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: '+=100',
+          scrub: 0.4,
+        },
+      });
+    }
+
+    // ── Desktop cursor parallax on static Blob S ──────────────────────────────
+    if (isDesktop && blobD) {
+      const onMove = (e: MouseEvent) => {
+        const cx = window.innerWidth  / 2;
+        const cy = window.innerHeight / 2;
+        gsap.to(blobD, {
+          x: ((e.clientX - cx) / cx) * 14,
+          y: ((e.clientY - cy) / cy) *  8,
+          duration: 0.9,
+          ease: 'power1.out',
+          overwrite: 'auto',
+        });
+      };
+      window.addEventListener('mousemove', onMove);
+      return () => window.removeEventListener('mousemove', onMove);
+    }
+  }, { scope: sectionRef, dependencies: [reducedMotion] });
+
   return (
-    <Section>
+    <Section ref={sectionRef}>
       <HeroGrid>
         <TextColumn>
-          <LabelWrap>
+          <LabelWrap data-hero-label="">
             <SectionLabel>{`01  /  RAW IDEA`}</SectionLabel>
           </LabelWrap>
 
-          <Headline>
+          <Headline data-hero-headline="">
             <HeadlineLineWhite>FROM IDEA</HeadlineLineWhite>
             <HeadlineLinePink>TO PRODUCT.</HeadlineLinePink>
           </Headline>
 
-          {/* Blob S — mobile position (between headline and body) */}
-          <BlobMobileWrap>
+          {/* Blob S — mobile (between headline and body) */}
+          <BlobMobileWrap data-hero-blob-m="">
             <Image
               src="/assets/blob-s-hero-mobile.svg"
               alt="Stefanko.tech signature S"
@@ -315,14 +394,13 @@ export function HeroSection() {
             />
           </BlobMobileWrap>
 
-          <BodyText>
+          <BodyText data-hero-body="">
             I connect product thinking, AI, design and technology
             <DesktopBr />
             to turn raw ideas into real products.
           </BodyText>
 
-          <CtaRow>
-            {/* Desktop CTAs */}
+          <CtaRow data-hero-cta="">
             <DesktopCtaGroup>
               <BlobButton
                 href="#contact"
@@ -348,7 +426,6 @@ export function HeroSection() {
               </SecondaryCtaWrap>
             </DesktopCtaGroup>
 
-            {/* Mobile primary CTA */}
             <MobilePrimaryBlobWrap>
               <Image
                 src="/assets/cta-primary-mobile.svg"
@@ -361,7 +438,6 @@ export function HeroSection() {
               <a href="#contact">Start a conversation</a>
             </MobilePrimaryBlobWrap>
 
-            {/* Mobile secondary CTA */}
             <MobileSecondaryBlobWrap>
               <Image
                 src="/assets/cta-secondary-mobile.svg"
@@ -377,7 +453,7 @@ export function HeroSection() {
         </TextColumn>
 
         {/* Blob S — desktop right column */}
-        <BlobDesktopWrap>
+        <BlobDesktopWrap data-hero-blob-d="">
           <BlobDesktopImgWrap>
             <Image
               src="/assets/blob-s-hero.svg"
@@ -390,7 +466,7 @@ export function HeroSection() {
         </BlobDesktopWrap>
       </HeroGrid>
 
-      <ScrollHint>SCROLL TO SHAPE THE IDEA</ScrollHint>
+      <ScrollHint data-hero-hint="">SCROLL TO SHAPE THE IDEA</ScrollHint>
     </Section>
   );
 }

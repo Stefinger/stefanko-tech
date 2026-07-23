@@ -1,8 +1,12 @@
 'use client';
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { gsap } from '@/lib/gsap';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 const Section = styled.section`
   background-color: ${colors.darkGreen};
@@ -32,7 +36,6 @@ const LabelWrap = styled.div`
   margin-bottom: 0;
 `;
 
-/* Two-column grid — Figma: 560 px text left, 1fr blob right. */
 const ContentGrid = styled.div`
   display: grid;
   grid-template-columns: 560px 1fr;
@@ -59,8 +62,6 @@ const Headline = styled.h2`
   font-weight: 400;
   font-style: normal;
   color: ${colors.cream};
-  /* 104 px margin matches the Figma gap from label bottom (86 px from section top) to
-     headline top (190 px from section top): 190 – 86 = 104 px. */
   margin-top: 104px;
 
   ${media.mobile} {
@@ -94,7 +95,6 @@ const BodyText = styled.p`
   font-size: 21px;
   line-height: 33px;
   color: ${colors.creamBody};
-  /* Figma gap from headline bottom (562) to body top (650): 88 px. */
   margin-top: 88px;
   max-width: 520px;
 
@@ -112,8 +112,6 @@ const BodyText = styled.p`
   }
 `;
 
-/* Statement headline lives in the BLOB (right) column per Figma desktop frame.
-   On mobile it flows naturally after the blob since BlobColumn comes after TextColumn. */
 const StatementHeadline = styled.h3`
   font-family: ${fonts.display};
   font-weight: 400;
@@ -121,7 +119,6 @@ const StatementHeadline = styled.h3`
   color: ${colors.cream};
   font-size: 54px;
   line-height: 60px;
-  /* Figma: blob bottom ≈ section-y 806, statement at 980 → gap 174 px. */
   margin-top: 174px;
   max-width: 600px;
 
@@ -143,9 +140,6 @@ const StatementLine = styled.span`
   display: block;
 `;
 
-/* InteractionNote is a direct child of Section (not ContentGrid) so it appears after
-   BlobColumn on mobile flex-column — matching Figma mobile order.
-   On desktop it is absolutely positioned to land at section-y 968 in the left column. */
 const InteractionNote = styled.div`
   position: absolute;
   left: 70px;
@@ -172,7 +166,6 @@ const InteractionNote = styled.div`
   }
 `;
 
-/* Desktop: "INTERACTION" / cursor message. Mobile: "MOBILE INTERACTION" / scroll message. */
 const InteractionLabel = styled.p`
   font-family: ${fonts.body};
   font-weight: 700;
@@ -201,7 +194,6 @@ const InteractionText = styled.p`
   }
 `;
 
-/* Text variants visible only on their respective breakpoints */
 const DesktopOnly = styled.span`
   ${media.mobile} { display: none; }
 `;
@@ -211,7 +203,6 @@ const MobileOnly = styled.span`
   ${media.mobile} { display: inline; }
 `;
 
-/* Blob S column — BlobSImg at 44 px from column left to match Figma frame position. */
 const BlobColumn = styled.div`
   position: relative;
   display: flex;
@@ -233,7 +224,6 @@ const BlobColumn = styled.div`
   }
 `;
 
-/* Figma 19:3: Blob S clarity at 500×660 px. Tablet: 380×502 px (same ratio). */
 const BlobSImgWrap = styled.div`
   position: relative;
   width: 500px;
@@ -252,9 +242,6 @@ const BlobSImgWrap = styled.div`
   }
 `;
 
-/* Discipline labels — absolutely positioned relative to the Section so coordinates
-   match the Figma frame exactly at 1440 px (desktop) and 390 px (mobile).
-   Tablet uses desktop values (some may clip at narrower widths — acceptable per spec). */
 interface DisciplineLabelProps {
   $desktopLeft: string;
   $desktopTop: string;
@@ -275,14 +262,14 @@ const DisciplineLabel = styled.p<DisciplineLabelProps>`
   pointer-events: none;
 
   left: ${({ $desktopLeft }) => $desktopLeft};
-  top: ${({ $desktopTop }) => $desktopTop};
+  top:  ${({ $desktopTop  }) => $desktopTop};
 
   ${media.mobile} {
     font-size: 10px;
     line-height: 14px;
     letter-spacing: 1.2px;
     left: ${({ $mobileLeft }) => $mobileLeft};
-    top: ${({ $mobileTop }) => $mobileTop};
+    top:  ${({ $mobileTop  }) => $mobileTop};
   }
 `;
 
@@ -292,92 +279,101 @@ const DisciplineLabelsArea = styled.div`
   pointer-events: none;
 `;
 
-/* Exact Figma coordinates — desktop from frame 19:3, mobile from frame 113:3 (via 135:4). */
 const disciplineLabels = [
-  {
-    text: 'PRODUCT THINKING',
-    color: colors.cream,
-    desktopLeft: '675px',
-    desktopTop: '180px',
-    mobileLeft: '24px',
-    mobileTop: '455px',
-  },
-  {
-    text: 'RESEARCH',
-    color: colors.muted,
-    desktopLeft: '1120px',
-    desktopTop: '290px',
-    mobileLeft: '258px',
-    mobileTop: '500px',
-  },
-  {
-    text: 'AI',
-    color: colors.pink,
-    desktopLeft: '1195px',
-    desktopTop: '525px',
-    mobileLeft: '300px',
-    mobileTop: '610px',
-  },
-  {
-    text: 'UX',
-    color: colors.cream,
-    desktopLeft: '1030px',
-    desktopTop: '760px',
-    mobileLeft: '274px',
-    mobileTop: '780px',
-  },
-  {
-    text: 'DESIGN',
-    color: colors.muted,
-    desktopLeft: '650px',
-    desktopTop: '850px',
-    mobileLeft: '24px',
-    mobileTop: '805px',
-  },
-  {
-    text: 'TECHNOLOGY',
-    color: colors.cream,
-    desktopLeft: '470px',
-    desktopTop: '680px',
-    mobileLeft: '24px',
-    mobileTop: '670px',
-  },
-  {
-    text: 'BUSINESS',
-    color: colors.lime,
-    desktopLeft: '470px',
-    desktopTop: '400px',
-    mobileLeft: '24px',
-    mobileTop: '555px',
-  },
+  { text: 'PRODUCT THINKING', color: colors.cream,  desktopLeft: '675px', desktopTop: '180px', mobileLeft: '24px',  mobileTop: '455px' },
+  { text: 'RESEARCH',         color: colors.muted,  desktopLeft: '1120px',desktopTop: '290px', mobileLeft: '258px', mobileTop: '500px' },
+  { text: 'AI',               color: colors.pink,   desktopLeft: '1195px',desktopTop: '525px', mobileLeft: '300px', mobileTop: '610px' },
+  { text: 'UX',               color: colors.cream,  desktopLeft: '1030px',desktopTop: '760px', mobileLeft: '274px', mobileTop: '780px' },
+  { text: 'DESIGN',           color: colors.muted,  desktopLeft: '650px', desktopTop: '850px', mobileLeft: '24px',  mobileTop: '805px' },
+  { text: 'TECHNOLOGY',       color: colors.cream,  desktopLeft: '470px', desktopTop: '680px', mobileLeft: '24px',  mobileTop: '670px' },
+  { text: 'BUSINESS',         color: colors.lime,   desktopLeft: '470px', desktopTop: '400px', mobileLeft: '24px',  mobileTop: '555px' },
 ];
 
 export function ClaritySection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
+
+  useGSAP(() => {
+    if (reducedMotion) return;
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    const label      = section.querySelector('[data-c-label]');
+    const headline   = section.querySelector('[data-c-headline]');
+    const lines      = headline ? headline.querySelectorAll('span') : [];
+    const body       = section.querySelector('[data-c-body]');
+    const blob       = section.querySelector('[data-c-blob]');
+    const disciplines = Array.from(section.querySelectorAll('[data-c-discipline]'));
+    const note       = section.querySelector('[data-c-note]');
+    const statement  = section.querySelector('[data-c-statement]');
+    const stmtLines  = statement ? statement.querySelectorAll('span') : [];
+
+    // ── Main entrance timeline ────────────────────────────────────────────────
+    // Fires when section enters from below. Elements animate to their Phase 2
+    // positions which are exactly the approved Figma coordinates.
+    gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 72%',
+      },
+      defaults: { ease: 'power2.out' },
+    })
+      .from(label, { opacity: 0, y: -10, duration: 0.45 })
+      .from(lines, {
+        opacity: 0,
+        y: isMobile ? 20 : 34,
+        duration: isMobile ? 0.5 : 0.65,
+        stagger: 0.1,
+      }, '-=0.25')
+      .from(body, { opacity: 0, y: isMobile ? 14 : 20, duration: 0.55 }, '-=0.2')
+      // Blob S enters from slight scale
+      .from(blob, { opacity: 0, scale: 0.96, duration: 0.75 }, '<0.05')
+      // Discipline labels stagger sequentially into exact Phase 2 positions
+      .from(disciplines, {
+        opacity: 0,
+        y: isMobile ? 10 : 14,
+        duration: 0.45,
+        stagger: 0.13,
+        ease: 'power2.out',
+      }, '-=0.3')
+      // Interaction note
+      .from(note, { opacity: 0, y: isMobile ? 12 : 18, duration: 0.5 }, '-=0.25')
+      // Statement headline ("I DON'T JUST WRITE CODE. / I CONNECT THE PIECES.")
+      .from(stmtLines, {
+        opacity: 0,
+        y: isMobile ? 14 : 22,
+        duration: 0.55,
+        stagger: 0.12,
+        ease: 'power2.out',
+      }, '-=0.2');
+  }, { scope: sectionRef, dependencies: [reducedMotion] });
+
   return (
-    <Section>
-      <LabelWrap>
+    <Section ref={sectionRef}>
+      <LabelWrap data-c-label="">
         <SectionLabel>{`03  /  CLARITY BEFORE COMPLEXITY`}</SectionLabel>
       </LabelWrap>
 
       <ContentGrid>
-        {/* Left column — headline and body only. InteractionNote is Section-level below. */}
         <TextColumn>
-          <Headline>
+          <Headline data-c-headline="">
             <HeadlineLine>CLARITY</HeadlineLine>
             <HeadlineLine>BEFORE</HeadlineLine>
             <HeadlineLine>COMPLEXITY.</HeadlineLine>
           </Headline>
 
-          <BodyText>
+          <BodyText data-c-body="">
             Find the real problem. Remove what does not matter.
             <br />
             Then connect every discipline around one clear direction.
           </BodyText>
         </TextColumn>
 
-        {/* Right column — Blob S + statement headline (matches Figma right-column placement). */}
         <BlobColumn>
-          <BlobSImgWrap>
+          <BlobSImgWrap data-c-blob="">
             <Image
               src="/assets/blob-s-clarity.svg"
               alt="Stefanko.tech S — clarity"
@@ -387,16 +383,14 @@ export function ClaritySection() {
             />
           </BlobSImgWrap>
 
-          <StatementHeadline>
+          <StatementHeadline data-c-statement="">
             <StatementLine>I DON&apos;T JUST WRITE CODE.</StatementLine>
             <StatementLine>I CONNECT THE PIECES.</StatementLine>
           </StatementHeadline>
         </BlobColumn>
       </ContentGrid>
 
-      {/* InteractionNote — absolute on desktop (left-column area at Figma y=968),
-          static on mobile after BlobColumn in the flex-column flow. */}
-      <InteractionNote>
+      <InteractionNote data-c-note="">
         <Image
           src="/assets/interaction-note-border.svg"
           alt=""
@@ -417,11 +411,11 @@ export function ClaritySection() {
         </div>
       </InteractionNote>
 
-      {/* Discipline labels — exact Figma positions relative to section */}
       <DisciplineLabelsArea aria-hidden="true">
         {disciplineLabels.map((label) => (
           <DisciplineLabel
             key={label.text}
+            data-c-discipline=""
             $desktopLeft={label.desktopLeft}
             $desktopTop={label.desktopTop}
             $mobileLeft={label.mobileLeft}
