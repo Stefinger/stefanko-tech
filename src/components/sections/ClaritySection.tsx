@@ -369,45 +369,54 @@ export function ClaritySection() {
     const lines       = headline ? headline.querySelectorAll('span') : [];
     const body        = section.querySelector('[data-c-body]');
     const blob        = section.querySelector('[data-c-blob]');
-    const disciplines = Array.from(section.querySelectorAll('[data-c-discipline]'));
     const connectors  = Array.from(section.querySelectorAll('[data-c-connector]'));
+    const disciplines = Array.from(section.querySelectorAll('[data-c-discipline]'));
     const note        = section.querySelector('[data-c-note]');
     const statement   = section.querySelector('[data-c-statement]');
     const stmtLines   = statement ? statement.querySelectorAll('span') : [];
 
+    /*
+     * Single coordinated timeline — entrance only.
+     * Trigger fires early (80%) so the complete composition is visible
+     * before the section centre reaches the viewport centre even at
+     * fast scroll speeds.  Elements stay in their final visible state
+     * for the rest of the section's scroll life.
+     * Order: label → headline → body+blob together → connectors → labels → note → statement.
+     */
     gsap.timeline({
-      scrollTrigger: { trigger: section, start: 'top 72%' },
+      scrollTrigger: { trigger: section, start: 'top 80%' },
       defaults: { ease: 'power2.out' },
     })
-      .from(label, { opacity: 0, y: -10, duration: 0.45 })
+      .from(label, { opacity: 0, y: -6, duration: 0.2 })
       .from(lines, {
         opacity: 0,
-        y: isMobile ? 20 : 34,
-        duration: isMobile ? 0.5 : 0.65,
-        stagger: 0.1,
-      }, '-=0.25')
-      .from(body, { opacity: 0, y: isMobile ? 14 : 20, duration: 0.55 }, '-=0.2')
-      .from(blob, { opacity: 0, scale: 0.96, duration: 0.75 }, '<0.05')
-      .from(disciplines, {
-        opacity: 0,
-        y: isMobile ? 8 : 12,
-        duration: 0.4,
-        stagger: 0.1,
-        ease: 'power2.out',
-      }, '-=0.3')
-      /* connector lines reveal after labels */
+        y: isMobile ? 10 : 16,
+        duration: isMobile ? 0.32 : 0.42,
+        stagger: 0.06,
+      }, '-=0.1')
+      .from(body, { opacity: 0, y: isMobile ? 6 : 10, duration: 0.32 }, '-=0.1')
+      /* Blob S enters simultaneously with body */
+      .from(blob, { opacity: 0, scale: 0.97, duration: 0.35 }, '<')
+      /* Connector lines reveal before discipline labels */
       .from(connectors, {
         opacity: 0,
-        duration: 0.5,
-        stagger: 0.06,
-      }, '-=0.4')
-      .from(note, { opacity: 0, y: isMobile ? 10 : 16, duration: 0.45 }, '-=0.2')
+        duration: 0.22,
+        stagger: 0.025,
+      }, '-=0.18')
+      /* All seven discipline labels enter */
+      .from(disciplines, {
+        opacity: 0,
+        y: isMobile ? 4 : 6,
+        duration: 0.22,
+        stagger: 0.03,
+      }, '-=0.08')
+      .from(note, { opacity: 0, y: 8, duration: 0.22 }, '-=0.06')
       .from(stmtLines, {
         opacity: 0,
-        y: isMobile ? 14 : 22,
-        duration: 0.55,
-        stagger: 0.12,
-      }, '-=0.3');
+        y: isMobile ? 6 : 10,
+        duration: 0.28,
+        stagger: 0.07,
+      }, '-=0.1');
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (

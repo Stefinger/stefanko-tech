@@ -199,6 +199,7 @@ interface SlabLabelProps {
   $rotation: string;
   $desktopLeft: string;
   $desktopTop: string;
+  $lgTop?: string;
   $mobileLeft: string;
   $mobileTop: string;
   $color: string;
@@ -219,6 +220,13 @@ const SlabLabel = styled.p<SlabLabelProps>`
   pointer-events: none;
   white-space: nowrap;
 
+  /* 992–1199 px: stage height is 800 px, so slab strip centres differ from the
+     default 1020 px reference.  Override only the labels that would fall
+     outside their exposed strip at 800 px. */
+  @media (min-width: 992px) and (max-width: 1199px) {
+    ${({ $lgTop }) => $lgTop ? `top: ${$lgTop};` : ''}
+  }
+
   /* Mirror the Slab breakpoint so label follows its slab */
   @media (max-width: 991px) {
     left: ${({ $mobileLeft }) => $mobileLeft};
@@ -231,16 +239,21 @@ const SlabLabel = styled.p<SlabLabelProps>`
 
 /* ─── Slab config ───────────────────────────────────────────────────────────── */
 /*
- * desktopLeft / topPct: % of AssemblyStage (1020 × 763 reference at 1440 px)
+ * desktopLeft / topPct: % of AssemblyStage (1020 px tall reference at ≥1200 px)
  * mobileLeft: px relative to AssemblyStage (no negative offsets)
  * mobileTop: px relative to AssemblyStage
  *
- * Label desktop top values place text in the exposed strip of each slab:
- *   PROBLEM   → strip y: 5.4%–13.2% of stage = 55–135 px → label at 75 px
- *   EXPERIENCE → strip y: 13.2%–17.3% of stage = 135–176 px → label at 147 px
- *   PRODUCT   → front fully visible → label at 203 px
+ * All topPct values shifted down by 3.6 % vs previous version to introduce a
+ * deliberate top safe area that keeps the back slab and its PROBLEM label clear
+ * of the fixed navbar at all tested widths (390, 768, 992, 1024, 1200, 1440 px).
  *
- * Mobile (stage 480 px tall):
+ * Label desktop top values — centre of each slab's exposed strip:
+ *   PROBLEM   → new strip: 9%–16.8% of 1020 px = 91.8–171.4 px → label 110 px
+ *   EXPERIENCE → strip: 16.8%–20.9% of 1020 px = 171.4–213.2 px → label 186 px
+ *               (at 992–1199 px the stage is 800 px → strip 134.4–167.2 px → lgTop 150 px)
+ *   PRODUCT   → front fully visible from 20.9% → label 244 px
+ *
+ * Mobile (stage 480 px, ≤767 px — values unchanged; mobileTop uses px):
  *   PROBLEM   → strip 26–63 px → label at 38 px
  *   EXPERIENCE → strip 63–83 px → label at 68 px
  *   PRODUCT   → label at 95 px
@@ -252,7 +265,7 @@ const slabs = [
     finalRotation: 10,
     /* desktop: back card bleeds left into gap (Figma intent) */
     leftPct: '-16%',
-    topPct: '5.4%',
+    topPct: '9%',
     /*
      * mobile (≤991 px, slab fixed at 263×385 px):
      * 10 px left compensates the 10-deg AABB offset (~31.5 px).
@@ -264,7 +277,8 @@ const slabs = [
     labelColor: colors.cream,
     labelRotation: '10deg',
     labelDesktopLeft: '70px',
-    labelDesktopTop: '75px',
+    labelDesktopTop: '110px',
+    labelLgTop: undefined as string | undefined,
     labelMobileLeft: '26px',
     labelMobileTop: '38px',
   },
@@ -273,14 +287,16 @@ const slabs = [
     rotation: '3deg',
     finalRotation: 3,
     leftPct: '0.7%',
-    topPct: '13.2%',
+    topPct: '16.8%',
     mobileLeft: '9px',
     mobileTop: '63px',
     labelText: 'EXPERIENCE',
     labelColor: colors.darkGreen,
     labelRotation: '3deg',
     labelDesktopLeft: '81px',
-    labelDesktopTop: '147px',
+    labelDesktopTop: '186px',
+    /* At 992–1199 px the stage is 800 px: middle strip = 134.4–167.2 px */
+    labelLgTop: '150px' as string | undefined,
     labelMobileLeft: '28px',
     labelMobileTop: '68px',
   },
@@ -289,14 +305,15 @@ const slabs = [
     rotation: '-4deg',
     finalRotation: -4,
     leftPct: '10%',
-    topPct: '17.3%',
+    topPct: '20.9%',
     mobileLeft: '22px',
     mobileTop: '83px',
     labelText: 'PRODUCT',
     labelColor: colors.cream,
     labelRotation: '-4deg',
     labelDesktopLeft: '110px',
-    labelDesktopTop: '203px',
+    labelDesktopTop: '244px',
+    labelLgTop: undefined as string | undefined,
     labelMobileLeft: '38px',
     labelMobileTop: '95px',
   },
@@ -434,6 +451,7 @@ export function BuildSection() {
                 $rotation={slab.labelRotation}
                 $desktopLeft={slab.labelDesktopLeft}
                 $desktopTop={slab.labelDesktopTop}
+                $lgTop={slab.labelLgTop}
                 $mobileLeft={slab.labelMobileLeft}
                 $mobileTop={slab.labelMobileTop}
                 $color={slab.labelColor}

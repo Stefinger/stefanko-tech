@@ -164,27 +164,36 @@ const CloudBgWrap = styled.div`
   aspect-ratio: 340 / 174;
 `;
 
-const CloudLabel = styled.p`
+/*
+ * Centres both title and subtext inside the cloud shape.
+ * padding: 0 14% keeps text inside the organic cloud safe area at all widths.
+ */
+const CloudContent = styled.div`
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14%;
+  gap: 6px;
+  pointer-events: none;
+`;
+
+const CloudLabel = styled.p`
   font-family: ${fonts.body};
   font-weight: 600;
-  font-size: clamp(14px, 1.6vw, 22px);
-  line-height: 1.27;
+  font-size: clamp(13px, 1.35vw, 18px);
+  line-height: 1.2;
   text-align: center;
-  width: 66%;
 `;
 
 const CloudSubtext = styled.p`
   font-family: ${fonts.body};
   font-weight: 400;
-  font-size: clamp(10px, 1.1vw, 15px);
-  line-height: 1.47;
+  font-size: clamp(9px, 0.78vw, 11px);
+  line-height: 1.42;
   text-align: center;
-  margin-top: 8px;
-  padding: 0 8%;
 `;
 
 /* ─── Mobile vertical journey ──────────────────────────────────────────────── */
@@ -281,9 +290,14 @@ const cloudSteps = [
     labelColor: colors.cream,
     subtext: 'Make the useful path easier.',
     subtextColor: colors.cream,
-    /* desktop: % of journey container (ref: 1312 × 513) */
+    /*
+     * desktop: % of journey container (ref: 1312 × 513).
+     * Was –10 %; raised to –14 % so the cream-coloured CloudSubtext
+     * (bottom ≈ y 176 px) stays above the wave path (y ≈ 190 px at the
+     * card's right edge, viewBox x ≈ 274) and produces no visible fragment.
+     */
     leftPct: '1%',
-    topPct: '-10%',
+    topPct: '-14%',
     /* mobile: align + top */
     mobileAlign: 'left' as const,
     mobileTop: '15px',
@@ -311,8 +325,13 @@ const cloudSteps = [
     labelColor: colors.cream,
     subtext: 'Ship the smallest useful version.',
     subtextColor: colors.cream,
+    /*
+     * Was 20.3 %; raised to 29 % so the cream CloudSubtext
+     * (bottom ≈ y 396 px) clears the wave-path peak (y ≈ 391 px at
+     * viewBox x ≈ 789) and produces no visible fragment on the curve.
+     */
     leftPct: '47.6%',
-    topPct: '20.3%',
+    topPct: '29%',
     mobileAlign: 'left' as const,
     mobileTop: '529px',
   },
@@ -644,13 +663,16 @@ export function DecisionsSection() {
                   unoptimized
                   style={{ objectFit: 'fill' }}
                 />
-                <CloudLabel style={{ color: step.labelColor }}>
-                  {step.label}
-                </CloudLabel>
+                {/* Title and copy share one centred block inside the cloud shape */}
+                <CloudContent>
+                  <CloudLabel style={{ color: step.labelColor }}>
+                    {step.label}
+                  </CloudLabel>
+                  <CloudSubtext style={{ color: step.subtextColor }}>
+                    {step.subtext}
+                  </CloudSubtext>
+                </CloudContent>
               </CloudBgWrap>
-              <CloudSubtext style={{ color: step.subtextColor }}>
-                {step.subtext}
-              </CloudSubtext>
             </CloudStep>
           ))}
         </DesktopJourney>
