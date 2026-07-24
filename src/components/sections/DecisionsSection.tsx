@@ -165,8 +165,13 @@ const CloudBgWrap = styled.div`
 `;
 
 /*
- * Centres both title and subtext inside the cloud shape.
- * padding: 0 14% keeps text inside the organic cloud safe area at all widths.
+ * Unified content block inside every desktop cloud shape.
+ *
+ * padding: 8% top / 14% sides / 2% bottom
+ *   — the 8% top bias shifts the flex centre from 50% to ~53% of the cloud
+ *     height, matching the optical centre of the organic cloud (the bumpy top
+ *     shifts the visual mass downward).
+ *   — 14% horizontal keeps both lines well clear of the organic side edges.
  */
 const CloudContent = styled.div`
   position: absolute;
@@ -175,25 +180,27 @@ const CloudContent = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 14%;
-  gap: 6px;
+  padding: 8% 14% 2% 14%;
+  gap: 5px;
   pointer-events: none;
 `;
 
 const CloudLabel = styled.p`
   font-family: ${fonts.body};
   font-weight: 600;
-  font-size: clamp(13px, 1.35vw, 18px);
-  line-height: 1.2;
+  font-size: clamp(14px, 1.5vw, 21px);
+  line-height: 1.15;
   text-align: center;
+  margin: 0;
 `;
 
 const CloudSubtext = styled.p`
   font-family: ${fonts.body};
   font-weight: 400;
-  font-size: clamp(9px, 0.78vw, 11px);
-  line-height: 1.42;
+  font-size: clamp(10px, 0.9vw, 13px);
+  line-height: 1.38;
   text-align: center;
+  margin: 0;
 `;
 
 /* ─── Mobile vertical journey ──────────────────────────────────────────────── */
@@ -253,30 +260,44 @@ const MobileCloudBgWrap = styled.div`
   aspect-ratio: 279 / 143;
 `;
 
-const MobileCloudLabel = styled.p`
+/*
+ * Unified content block for mobile cloud shapes.
+ *
+ * Replaces the old pair of individually-positioned elements (title at top:34%,
+ * copy at top:69%) which created a ~38px gap on a 143px-tall cloud — title
+ * trapped near the upper bumps, copy stranded at the bottom.
+ *
+ * Now a single flex column centred inside the cloud, with 12% top padding to
+ * push the block into the smoother lower body of the organic shape.
+ */
+const MobileCloudContent = styled.div`
   position: absolute;
-  top: 34%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12% 12% 4% 12%;
+  gap: 4px;
+  pointer-events: none;
+`;
+
+const MobileCloudLabel = styled.p`
   font-family: ${fonts.body};
   font-weight: 600;
-  font-size: 18px;
-  line-height: 23px;
+  font-size: 15px;
+  line-height: 1.15;
   text-align: center;
-  width: 66%;
+  margin: 0;
 `;
 
 const MobileCloudSubtext = styled.p`
-  position: absolute;
-  top: 69%;
-  left: 50%;
-  transform: translateX(-50%);
   font-family: ${fonts.body};
   font-weight: 400;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 11px;
+  line-height: 1.38;
   text-align: center;
-  width: 66%;
+  margin: 0;
 `;
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
@@ -716,12 +737,15 @@ export function DecisionsSection() {
                   unoptimized
                   style={{ objectFit: 'fill' }}
                 />
-                <MobileCloudLabel style={{ color: step.labelColor }}>
-                  {step.label}
-                </MobileCloudLabel>
-                <MobileCloudSubtext style={{ color: step.subtextColor }}>
-                  {step.subtext}
-                </MobileCloudSubtext>
+                {/* Title + copy as one compact centred group inside the cloud */}
+                <MobileCloudContent>
+                  <MobileCloudLabel style={{ color: step.labelColor }}>
+                    {step.label}
+                  </MobileCloudLabel>
+                  <MobileCloudSubtext style={{ color: step.subtextColor }}>
+                    {step.subtext}
+                  </MobileCloudSubtext>
+                </MobileCloudContent>
               </MobileCloudBgWrap>
             </MobileCloudStep>
           ))}
