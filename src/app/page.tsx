@@ -1,3 +1,4 @@
+import { BlobJourneyRoot } from '@/components/blob/BlobJourneyRoot';
 import { Navbar } from '@/components/layout/Navbar';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { UncertaintySection } from '@/components/sections/UncertaintySection';
@@ -10,7 +11,7 @@ import { Footer } from '@/components/Footer';
 
 export default function HomePage() {
   return (
-    <>
+    <BlobJourneyRoot>
       <Navbar />
       <main>
         <HeroSection />
@@ -22,6 +23,6 @@ export default function HomePage() {
         <FinalCtaSection />
       </main>
       <Footer />
-    </>
+    </BlobJourneyRoot>
   );
 }

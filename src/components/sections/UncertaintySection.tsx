@@ -186,6 +186,7 @@ const QuestionLabel = styled.p<QuestionLabelProps>`
 
 /* ─── Bottom rule ──────────────────────────────────────────────────────────── */
 const RuleWrap = styled.div`
+  position: relative;
   margin-top: 0;
   height: 1px;
   overflow: hidden;
@@ -503,10 +504,9 @@ export function UncertaintySection() {
             src="/assets/section-rule.svg"
             alt=""
             aria-hidden={true}
-            width={1312}
-            height={1}
+            fill
             unoptimized
-            style={{ width: '100%', height: 'auto', display: 'block' }}
+            style={{ objectFit: 'fill' }}
           />
         </RuleWrap>
 

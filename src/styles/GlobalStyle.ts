@@ -10,7 +10,13 @@ export const GlobalStyle = createGlobalStyle`
 
   html {
     height: 100%;
-    scroll-behavior: smooth;
+    /* scroll-behavior is intentionally NOT set to smooth globally.
+       Global smooth-scroll causes the browser to animate from scrollY=0
+       on a fresh direct load at #about or #contact, showing the Hero for
+       ~0.8-0.9 s before the target section arrives.
+       User-initiated anchor navigation uses explicit scrollIntoView() calls
+       in Navbar.tsx and therefore remains smooth. */
+    scroll-behavior: auto;
   }
 
   html, body {
@@ -50,6 +56,7 @@ export const GlobalStyle = createGlobalStyle`
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+    /* scroll-behavior: auto is already the global default; kept for clarity */
     html {
       scroll-behavior: auto;
     }

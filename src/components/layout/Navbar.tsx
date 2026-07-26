@@ -302,6 +302,22 @@ export function Navbar() {
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Desktop anchor links — smooth scroll without relying on CSS scroll-behavior.
+  // Global scroll-behavior is 'auto' so that direct hash loads (#about, #contact)
+  // start at the correct position instantly. This handler provides smooth scrolling
+  // for user-initiated clicks on desktop nav links and the desktop CTA.
+  const handleNavClick = useCallback(
+    (id: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        history.pushState(null, '', `#${id}`);
+      }
+    },
+    [],
+  );
+
   const openMenu = useCallback(() => setIsOpen(true), []);
 
   // Explicit close (X button, Escape, hamburger toggle) — no navigation
@@ -447,10 +463,10 @@ export function Navbar() {
           </LogoGroup>
 
           <NavLinks>
-            <NavLink href="#proof">Work</NavLink>
-            <NavLink href="#build-in-public">Build in Public</NavLink>
-            <NavLink href="#about">About</NavLink>
-            <NavLink href="#contact">Contact</NavLink>
+            <NavLink href="#proof" onClick={handleNavClick('proof')}>Work</NavLink>
+            <NavLink href="#build-in-public" onClick={handleNavClick('build-in-public')}>Build in Public</NavLink>
+            <NavLink href="#about" onClick={handleNavClick('about')}>About</NavLink>
+            <NavLink href="#contact" onClick={handleNavClick('contact')}>Contact</NavLink>
           </NavLinks>
 
           <NavCtaWrap>
@@ -461,6 +477,7 @@ export function Navbar() {
               width={166}
               height={56}
               fontSize={14}
+              onClick={handleNavClick('contact')}
             >
               Start a project
             </BlobButton>

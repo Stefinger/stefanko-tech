@@ -12,7 +12,7 @@ interface BlobButtonProps {
   height: number;
   fontSize?: number;
   className?: string;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
 }
 
 const BlobAnchor = styled.a<{ $width: number; $height: number }>`

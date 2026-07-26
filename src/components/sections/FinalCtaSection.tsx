@@ -8,6 +8,7 @@ import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
 import { SecondaryExploreCta } from '@/components/ui/SecondaryExploreCta';
+import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -17,7 +18,7 @@ const DesktopBr = styled.br`
   }
 `;
 
-/* ─── Section shell — full-width background, vertical spacing only ──────── */
+/* ─── Section shell ──────────────────────────────────────────────────────── */
 const Section = styled.section`
   background-color: ${colors.darkGreen};
   position: relative;
@@ -37,14 +38,20 @@ const Section = styled.section`
   }
 `;
 
-/* SiteContainer that also acts as the containing block for the absolute Blob S.
-   The blob is positioned relative to this max-1440px centred container, so it
-   stays correctly aligned with the text column at any viewport width. */
+/* Contains the absolute-positioned Blob S slot. InnerContainer has
+   position: relative but NO z-index — no stacking context created. */
 const InnerContainer = styled(SiteContainer)`
   position: relative;
   min-height: inherit;
 `;
 
+/* Section label — above canvas (z-index: 20) */
+const LabelWrap = styled.div`
+  position: relative;
+  z-index: 30;
+`;
+
+/* Headline — above canvas (z-index: 20) */
 const Headline = styled.h2`
   font-family: ${fonts.display};
   font-weight: 400;
@@ -52,6 +59,8 @@ const Headline = styled.h2`
   color: ${colors.cream};
   margin-top: 120px;
   max-width: 900px;
+  position: relative;
+  z-index: 30;
 
   ${media.mobile} {
     margin-top: 62px;
@@ -79,6 +88,7 @@ const HeadlineLine = styled.span`
   }
 `;
 
+/* Body text — above canvas */
 const BodyText = styled.p`
   font-family: ${fonts.body};
   font-weight: 400;
@@ -87,6 +97,8 @@ const BodyText = styled.p`
   color: ${colors.creamBody};
   margin-top: 120px;
   max-width: 600px;
+  position: relative;
+  z-index: 30;
 
   ${media.mobile} {
     font-size: 17px;
@@ -102,8 +114,9 @@ const BodyText = styled.p`
   }
 `;
 
-/* ─── Blob S — absolute, positioned relative to InnerContainer ──────────── */
+/* ─── Blob S slot — absolute within InnerContainer ──────────────────────── */
 /* Figma 19:3: right edge at 1440–961 = 479 px from left, width 461 px → right ≈ 19 px */
+/* filter creates a stacking context at z-index: auto — below canvas (z-index: 20) */
 const BlobSFinalWrap = styled.div`
   position: absolute;
   right: 19px;
@@ -130,13 +143,15 @@ const BlobSFinalWrap = styled.div`
   }
 `;
 
-/* ─── CTA block ─────────────────────────────────────────────────────────── */
+/* ─── CTA block — above canvas ───────────────────────────────────────────── */
 const CtaBlock = styled.div`
   margin-top: 135px;
   display: flex;
   align-items: center;
   gap: 0;
   padding-bottom: 100px;
+  position: relative;
+  z-index: 30;
 
   ${media.mobile} {
     flex-direction: column;
@@ -154,7 +169,7 @@ const CtaBlock = styled.div`
   }
 `;
 
-/* Desktop group — primary blob + overlapping secondary blob (same pattern as Hero) */
+/* Desktop group — primary blob + overlapping secondary blob */
 const DesktopCtaGroup = styled.div`
   display: flex;
   align-items: center;
@@ -219,8 +234,8 @@ export function FinalCtaSection() {
     const headline = section.querySelector('[data-f-headline]');
     const lines    = headline ? headline.querySelectorAll('span') : [];
     const body     = section.querySelector('[data-f-body]');
-    const blob     = section.querySelector('[data-f-blob]');
     const cta      = section.querySelector('[data-f-cta]');
+    // data-f-blob (the Blob S) is handled by the persistent canvas; no GSAP animation here.
 
     const tl = gsap.timeline({
       scrollTrigger: { trigger: section, start: 'top 78%' },
@@ -236,27 +251,15 @@ export function FinalCtaSection() {
       }, '-=0.25')
       .from(body, { opacity: 0, y: isMobile ? 14 : 22, duration: 0.55 }, '-=0.2')
       .from(cta,  { opacity: 0, y: isMobile ? 12 : 18, duration: 0.5  }, '-=0.25');
-
-    if (blob) {
-      gsap.from(blob, {
-        opacity: 0,
-        scale: 0.94,
-        rotation: isMobile ? 1.5 : 2.5,
-        transformOrigin: 'center center',
-        duration: 1.1,
-        ease: 'power2.out',
-        delay: 0.15,
-        scrollTrigger: { trigger: section, start: 'top 78%' },
-      });
-    }
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section id="contact" ref={sectionRef}>
+    /* data-scene-section used by BlobJourneyController */
+    <Section id="contact" ref={sectionRef} data-scene-section="final">
       <InnerContainer>
-        <div data-f-label="">
+        <LabelWrap data-f-label="">
           <SectionLabel>{`07  /  THE NEXT IDEA`}</SectionLabel>
-        </div>
+        </LabelWrap>
 
         <Headline data-f-headline="">
           <HeadlineLine>HAVE AN IDEA</HeadlineLine>
@@ -269,15 +272,9 @@ export function FinalCtaSection() {
           Let&apos;s find out what product should exist.
         </BodyText>
 
-        {/* Blob S — desktop: absolute within InnerContainer; mobile: inline flow */}
+        {/* Blob S slot — canvas renders above via z-index: 20 > filter: auto */}
         <BlobSFinalWrap data-f-blob="" aria-hidden="true">
-          <Image
-            src="/assets/blob-s-final.svg"
-            alt=""
-            fill
-            unoptimized
-            style={{ objectFit: 'contain' }}
-          />
+          <BlobSceneSlot slotKey="final" />
         </BlobSFinalWrap>
 
         <CtaBlock data-f-cta="">

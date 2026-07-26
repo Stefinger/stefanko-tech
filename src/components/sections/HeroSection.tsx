@@ -1,6 +1,5 @@
 'use client';
 import { useRef } from 'react';
-import dynamic from 'next/dynamic';
 import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
@@ -9,13 +8,9 @@ import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobButton } from '@/components/ui/BlobButton';
 import { SecondaryExploreCta } from '@/components/ui/SecondaryExploreCta';
+import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
-
-const BlobSCanvas = dynamic(
-  () => import('@/components/canvas/BlobSCanvas').then(m => m.BlobSCanvas),
-  { ssr: false }
-);
 
 /* ─── Section shell — full-width background, vertical spacing only ──────── */
 const Section = styled.section`
@@ -57,9 +52,12 @@ const HeroGrid = styled.div`
   }
 `;
 
+/* Text column — above canvas (z-index: 20) so headline and CTAs remain interactive */
 const TextColumn = styled.div`
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 30;
 `;
 
 const LabelWrap = styled.div`
@@ -101,7 +99,8 @@ const HeadlineLinePink = styled(HeadlineLineWhite)`
   color: ${colors.pink};
 `;
 
-/* ─── Blob S — shown below 992 px (mobile + narrow tablet) ─────────────── */
+/* ─── Blob S slot — narrow screens (mobile + narrow tablet, <992 px) ───── */
+/* filter creates a stacking context at z-index: auto — below canvas (z-index: 20) */
 const BlobNarrowWrap = styled.div`
   display: none;
   justify-content: center;
@@ -200,7 +199,8 @@ const NarrowSecondaryWrap = styled(NarrowBlobWrap)`
   }
 `;
 
-/* ─── Blob S — desktop right column (≥992 px) ──────────────────────────── */
+/* ─── Blob S slot — desktop right column (≥992 px) ─────────────────────── */
+/* filter creates a stacking context at z-index: auto — below canvas (z-index: 20) */
 const BlobDesktopWrap = styled.div`
   display: flex;
   justify-content: center;
@@ -230,6 +230,7 @@ const DesktopBr = styled.br`
   }
 `;
 
+/* z-index: 30 ensures scroll hint stays above the fixed canvas (z-index: 20) */
 const ScrollHint = styled.p`
   font-family: ${fonts.body};
   font-weight: 500;
@@ -241,6 +242,7 @@ const ScrollHint = styled.p`
   position: absolute;
   right: 64px;
   bottom: 58px;
+  z-index: 30;
 
   @media (max-width: 767px) {
     font-size: 10px;
@@ -274,8 +276,7 @@ export function HeroSection() {
     const lines    = headline ? headline.querySelectorAll('span') : [];
     const body     = section.querySelector('[data-hero-body]');
     const cta      = section.querySelector('[data-hero-cta]');
-    const blobD    = section.querySelector('[data-hero-blob-d]');
-    const blobN    = section.querySelector('[data-hero-blob-n]'); // narrow (mobile/tablet)
+    const blobN    = section.querySelector('[data-hero-blob-n]');
     const hint     = section.querySelector('[data-hero-hint]');
 
     const tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
@@ -288,7 +289,7 @@ export function HeroSection() {
         stagger: 0.13,
       }, '-=0.25');
 
-    // Narrow blob enters between headline and body
+    // Narrow blob slot enters between headline and body on mobile
     if (isMobile && blobN) {
       tl.from(blobN, { opacity: 0, scale: 0.94, duration: 0.6 }, '-=0.1');
     }
@@ -296,17 +297,8 @@ export function HeroSection() {
     tl.from(body, { opacity: 0, y: isMobile ? 16 : 26, duration: 0.6 }, '-=0.25')
       .from(cta,  { opacity: 0, y: isMobile ? 12 : 18, duration: 0.5 }, '-=0.3');
 
-    if (!isMobile && blobD) {
-      gsap.from(blobD, {
-        opacity: 0,
-        scale: 0.94,
-        rotation: 2,
-        transformOrigin: 'center center',
-        duration: 1.0,
-        ease: 'power2.out',
-        delay: 0.1,
-      });
-    }
+    // Desktop blob slot (data-hero-blob-d) is now handled by the persistent canvas;
+    // no separate GSAP animation needed for it.
 
     if (hint) {
       gsap.to(hint, {
@@ -322,7 +314,8 @@ export function HeroSection() {
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section ref={sectionRef}>
+    /* data-scene-section used by BlobJourneyController to set up ScrollTrigger */
+    <Section ref={sectionRef} data-scene-section="hero">
       <SiteContainer>
         <HeroGrid>
           <TextColumn>
@@ -335,10 +328,10 @@ export function HeroSection() {
               <HeadlineLinePink>TO PRODUCT.</HeadlineLinePink>
             </Headline>
 
-            {/* Blob S — narrow screens (mobile + tablet, <992 px) */}
+            {/* Mobile blob slot — canvas renders above filter stacking context */}
             <BlobNarrowWrap data-hero-blob-n="">
               <BlobNarrowInner>
-                <BlobSCanvas reducedMotion={reducedMotion} />
+                <BlobSceneSlot slotKey="hero-mobile" />
               </BlobNarrowInner>
             </BlobNarrowWrap>
 
@@ -392,10 +385,10 @@ export function HeroSection() {
             </CtaRow>
           </TextColumn>
 
-          {/* Blob S — desktop right column (≥992 px) */}
+          {/* Desktop blob slot — canvas renders above filter stacking context */}
           <BlobDesktopWrap data-hero-blob-d="">
             <BlobDesktopImgWrap>
-              <BlobSCanvas reducedMotion={reducedMotion} />
+              <BlobSceneSlot slotKey="hero-desktop" />
             </BlobDesktopImgWrap>
           </BlobDesktopWrap>
         </HeroGrid>

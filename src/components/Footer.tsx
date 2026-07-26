@@ -16,6 +16,7 @@ const FooterEl = styled.footer`
 `;
 
 const FooterRule = styled.div`
+  position: relative;
   width: 100%;
   height: 1px;
   overflow: hidden;
@@ -118,10 +119,9 @@ export function Footer() {
             src="/assets/footer-rule.svg"
             alt=""
             aria-hidden={true}
-            width={1312}
-            height={1}
+            fill
             unoptimized
-            style={{ width: '100%', height: 'auto', display: 'block' }}
+            style={{ objectFit: 'fill' }}
           />
         </FooterRule>
 

@@ -6,6 +6,7 @@ import styled from 'styled-components';
 import { colors, fonts } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -44,9 +45,12 @@ const ContentGrid = styled.div`
   }
 `;
 
+/* Text column — above canvas (z-index: 20) */
 const TextColumn = styled.div`
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 30;
 `;
 
 const Headline = styled.h2`
@@ -101,6 +105,8 @@ const StageColumn = styled.div`
 `;
 
 /* ─── ClarityStage — bounded, all labels % relative to it ─────────────────── */
+/* No z-index on ClarityStage — children (ConnectorSVG, DisciplineLabel, BlobSWrap)
+   participate individually in the root stacking context. */
 const ClarityStage = styled.div`
   position: relative;
   width: 100%;
@@ -121,7 +127,9 @@ const ClarityStage = styled.div`
   }
 `;
 
-/* Blob S — centered in stage */
+/* Blob S slot — centred in stage.
+   filter creates a stacking context at z-index: auto — below canvas (z-index: 20).
+   The persistent canvas blob renders above this slot's static SVG fallback. */
 const BlobSWrap = styled.div`
   position: absolute;
   /* 68% wide, aspect-ratio preserves height */
@@ -138,7 +146,8 @@ const BlobSWrap = styled.div`
   }
 `;
 
-/* Connector SVG — sits behind labels, above blob */
+/* Connector SVG — above canvas (z-index: 30 > canvas z-index: 20).
+   position: absolute, no stacking context parent → competes in root context. */
 const ConnectorSVG = styled.svg`
   position: absolute;
   inset: 0;
@@ -146,9 +155,11 @@ const ConnectorSVG = styled.svg`
   height: 100%;
   pointer-events: none;
   overflow: visible;
+  z-index: 30;
 `;
 
-/* Discipline labels — percentage-positioned relative to ClarityStage */
+/* Discipline labels — above canvas (z-index: 30).
+   position: absolute inside ClarityStage (no stacking context) → root context. */
 interface DisciplineLabelProps {
   $leftPct: string;
   $topPct: string;
@@ -169,8 +180,8 @@ const DisciplineLabel = styled.p<DisciplineLabelProps>`
   color: ${({ $color }) => $color};
   white-space: nowrap;
   pointer-events: none;
-  /* ensure label doesn't overflow stage on any side */
   max-width: 30%;
+  z-index: 30;
 
   @media (max-width: 991px) {
     font-size: 11px;
@@ -178,7 +189,6 @@ const DisciplineLabel = styled.p<DisciplineLabelProps>`
     letter-spacing: 1.3px;
     left: ${({ $mobileLeftPct }) => $mobileLeftPct};
     top: ${({ $mobileTopPct }) => $mobileTopPct};
-    /* allow a small label to wrap rather than clip viewport */
     white-space: normal;
     max-width: 28%;
   }
@@ -191,7 +201,7 @@ const DisciplineLabel = styled.p<DisciplineLabelProps>`
   }
 `;
 
-/* ─── Statement + interaction note ────────────────────────────────────────── */
+/* ─── Statement + interaction note — above canvas ──────────────────────────── */
 const StatementHeadline = styled.h3`
   font-family: ${fonts.display};
   font-weight: 400;
@@ -201,6 +211,8 @@ const StatementHeadline = styled.h3`
   line-height: 1.1;
   margin-top: 40px;
   max-width: 580px;
+  position: relative;
+  z-index: 30;
 
   @media (max-width: 991px) {
     font-size: clamp(32px, 6vw, 48px);
@@ -226,6 +238,7 @@ const InteractionNote = styled.div`
   width: 420px;
   height: 147px;
   max-width: 100%;
+  z-index: 30;
 
   .note-content {
     position: relative;
@@ -273,11 +286,6 @@ const MobileOnly = styled.span`
 `;
 
 /* ─── Data ──────────────────────────────────────────────────────────────────── */
-/*
- * leftPct / topPct: percentage of ClarityStage (desktop, xl/lg)
- * mobileLeftPct / mobileTopPct: percentage of ClarityStage on mobile
- * All labels remain inside stage safe bounds.
- */
 const disciplineLabels = [
   {
     text: 'PRODUCT THINKING',
@@ -286,7 +294,6 @@ const disciplineLabels = [
     topPct: '6%',
     mobileLeftPct: '2%',
     mobileTopPct: '2%',
-    /* connector line endpoints: label-side → S-side (in 0–100 viewBox) */
     lineFrom: { x: 28, y: 9 },
     lineTo: { x: 36, y: 18 },
   },
@@ -368,7 +375,6 @@ export function ClaritySection() {
     const headline    = section.querySelector('[data-c-headline]');
     const lines       = headline ? headline.querySelectorAll('span') : [];
     const body        = section.querySelector('[data-c-body]');
-    const blob        = section.querySelector('[data-c-blob]');
     const connectors  = Array.from(section.querySelectorAll('[data-c-connector]'));
     const disciplines = Array.from(section.querySelectorAll('[data-c-discipline]'));
     const note        = section.querySelector('[data-c-note]');
@@ -376,12 +382,10 @@ export function ClaritySection() {
     const stmtLines   = statement ? statement.querySelectorAll('span') : [];
 
     /*
-     * Single coordinated timeline — entrance only.
-     * Trigger fires early (80%) so the complete composition is visible
-     * before the section centre reaches the viewport centre even at
-     * fast scroll speeds.  Elements stay in their final visible state
-     * for the rest of the section's scroll life.
-     * Order: label → headline → body+blob together → connectors → labels → note → statement.
+     * The Blob S (data-c-blob) is no longer animated here — the persistent
+     * canvas handles its fade-in timing via ScrollTrigger in BlobJourneyController.
+     *
+     * Order: label → headline → body → connectors → labels → note → statement.
      */
     gsap.timeline({
       scrollTrigger: { trigger: section, start: 'top 80%' },
@@ -395,9 +399,7 @@ export function ClaritySection() {
         stagger: 0.06,
       }, '-=0.1')
       .from(body, { opacity: 0, y: isMobile ? 6 : 10, duration: 0.32 }, '-=0.1')
-      /* Blob S enters simultaneously with body */
-      .from(blob, { opacity: 0, scale: 0.97, duration: 0.35 }, '<')
-      /* Connector lines reveal before discipline labels */
+      /* Connector lines reveal */
       .from(connectors, {
         opacity: 0,
         duration: 0.22,
@@ -420,7 +422,8 @@ export function ClaritySection() {
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section id="about" ref={sectionRef}>
+    /* data-scene-section used by BlobJourneyController */
+    <Section id="about" ref={sectionRef} data-scene-section="clarity">
       <SiteContainer>
         <div data-c-label="">
           <SectionLabel>{`03  /  CLARITY BEFORE COMPLEXITY`}</SectionLabel>
@@ -445,18 +448,12 @@ export function ClaritySection() {
           {/* ── Stage column ── */}
           <StageColumn>
             <ClarityStage>
-              {/* Blob S centred in stage */}
+              {/* Blob S slot — canvas renders above via z-index: 20 > filter: auto */}
               <BlobSWrap data-c-blob="">
-                <Image
-                  src="/assets/blob-s-clarity.svg"
-                  alt="Stefanko.tech S — clarity"
-                  fill
-                  unoptimized
-                  style={{ objectFit: 'contain' }}
-                />
+                <BlobSceneSlot slotKey="clarity" />
               </BlobSWrap>
 
-              {/* Connector lines — thin, one SVG overlay */}
+              {/* Connector lines — z-index: 30, above canvas (z-index: 20) */}
               <ConnectorSVG
                 viewBox="0 0 100 100"
                 preserveAspectRatio="none"
@@ -478,7 +475,7 @@ export function ClaritySection() {
                 ))}
               </ConnectorSVG>
 
-              {/* Discipline labels — percentage-positioned relative to stage */}
+              {/* Discipline labels — z-index: 30, above canvas (z-index: 20) */}
               {disciplineLabels.map((d) => (
                 <DisciplineLabel
                   key={d.text}
@@ -501,7 +498,7 @@ export function ClaritySection() {
           </StageColumn>
         </ContentGrid>
 
-        {/* Interaction note — in flow below grid */}
+        {/* Interaction note — z-index: 30 via styled component */}
         <InteractionNote data-c-note="">
           <Image
             src="/assets/interaction-note-border.svg"
