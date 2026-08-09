@@ -1,11 +1,12 @@
 'use client';
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { colors, fonts } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -15,11 +16,53 @@ const Section = styled.section`
   position: relative;
   overflow: hidden;
   padding-top: 70px;
-  padding-bottom: 70px;
+  padding-bottom: 88px;
 
   @media (max-width: 767px) {
     padding-top: 48px;
-    padding-bottom: 80px;
+    padding-bottom: 72px;
+  }
+`;
+
+/* Everything readable sits above the fixed Blob S canvas (z-index: 20) */
+const Content = styled.div`
+  position: relative;
+  z-index: 30;
+`;
+
+/* ─── Blob S ────────────────────────────────────────────────────────────────
+ *
+ * Desktop: the upper-right corner, in the open space beside the headline and
+ * well above the timeline. Sitting near the roadmap competed with the path and
+ * its markers for attention; up here it supports the section without touching
+ * the point system at all.
+ */
+const BlobOverlay = styled(SiteContainer)`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+`;
+
+const BlobOverlayInner = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+`;
+
+const BlobSlotWrap = styled.div`
+  position: absolute;
+  right: 0;
+  top: 6%;
+  width: 17%;
+  max-width: 230px;
+  aspect-ratio: 590 / 780;
+
+  @media (max-width: 991px) {
+    left: -8%;
+    right: auto;
+    bottom: 4%;
+    width: 46%;
+    max-width: none;
   }
 `;
 
@@ -46,8 +89,8 @@ const HeadlineLine = styled.span`
   line-height: 1.04;
 
   @media (max-width: 767px) {
-    font-size: 57px;
-    line-height: 61px;
+    font-size: clamp(46px, 14.6vw, 57px);
+    line-height: 1.07;
   }
 `;
 
@@ -55,67 +98,68 @@ const HeadlineLinePink = styled(HeadlineLine)`
   color: ${colors.pink};
 `;
 
+/*
+ * Supporting copy sat flush against the headline (margin-top: 0) with no
+ * measure limit tuned for the display size above it. It now gets its own
+ * breathing room and a measure that keeps it to a single comfortable line on
+ * desktop, tracking the headline's left edge.
+ */
 const BodyText = styled.p`
   font-family: ${fonts.body};
   font-weight: 400;
-  font-size: 22px;
-  line-height: 34px;
+  font-size: clamp(18px, 1.6vw, 22px);
+  line-height: 1.55;
   color: ${colors.darkGreen};
-  margin-top: 0;
-  max-width: 660px;
+  margin-top: clamp(20px, 2.4vw, 34px);
+  max-width: 680px;
 
   @media (max-width: 767px) {
     font-size: 18px;
     line-height: 28px;
-    margin-top: 24px;
+    margin-top: 22px;
     max-width: 100%;
   }
 `;
 
 /* ─── Desktop journey stage ────────────────────────────────────────────────── */
 /*
- * All elements inside share a common percentage coordinate system.
- * Cloud cards use left% / top% relative to this container.
- * SVG path, arrow, and S-point markers are in one unified SVG.
- * SVG viewBox: 0 0 1312 620, same content-width reference as Figma.
+ * ONE coordinate system for the whole stage.
+ *
+ * Previously the wave lived in a 620 px-tall box that overhung a 513 px journey
+ * container, and the cloud cards were positioned against the shorter box with
+ * negative percentages. Wave, markers and cards are now all placed against the
+ * SAME box, whose aspect ratio tracks the SVG viewBox (1312 × 800 ≈ 1.64) at
+ * every width — so `preserveAspectRatio="none"` never visibly shears the curve
+ * and nothing drifts apart between breakpoints.
+ *
+ * The path itself was reshaped for the layout rather than the other way round:
+ * it now runs through four explicit nodes, alternating high and low, and each
+ * cloud card is centred on its own node with a fixed clearance band.
  */
 const DesktopJourney = styled.div`
   position: relative;
-  margin-top: 100px;
+  margin-top: clamp(56px, 6vw, 100px);
   width: 100%;
-  height: 513px;
+  /* keeps container aspect ≈ 2.12, matching the viewBox */
+  height: clamp(400px, 43vw, 620px);
 
-  /* Below 992 px the journey container is too narrow for the horizontal wave;
-     switch to the mobile vertical layout at the same breakpoint as the grid. */
+  /* Below 992 px the stage is too narrow for the horizontal wave;
+     the vertical mobile journey takes over at the same breakpoint. */
   @media (max-width: 991px) {
     display: none;
   }
-
-  @media (min-width: 992px) and (max-width: 1100px) {
-    height: 460px;
-    margin-top: 70px;
-    overflow: visible;
-  }
 `;
 
-/* SVG wrapper — drawn wave fills the journey */
 const WaveTimelineWrap = styled.div`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 620px;
-
-  /* Compress wave height at intermediate desktop widths */
-  @media (min-width: 992px) and (max-width: 1100px) {
-    height: 500px;
-  }
+  inset: 0;
 `;
 
 /*
- * S-point marker — HTML element, percentage-positioned inside WaveTimelineWrap
- * so it scales proportionally with the SVG at all widths.
- * left% = markerX / 1312, top% = markerY / 620
+ * S-point markers sit exactly on the path by construction: each node is the
+ * shared endpoint of two cubic segments, so its viewBox coordinate is exact and
+ * a plain percentage places it with zero error at every width. No runtime
+ * getPointAtLength() measurement or ResizeObserver is needed any more.
  */
 interface MarkerWrapProps {
   $leftPct: string;
@@ -126,12 +170,12 @@ const MarkerWrap = styled.div<MarkerWrapProps>`
   position: absolute;
   left: ${({ $leftPct }) => $leftPct};
   top: ${({ $topPct }) => $topPct};
-  width: 42px;
-  height: 42px;
+  width: clamp(26px, 2.8vw, 38px);
+  aspect-ratio: 1;
   transform: translate(-50%, -50%);
 `;
 
-/* ─── Cloud cards (desktop) — percentage-positioned ───────────────────────── */
+/* ─── Cloud cards (desktop) — percentage-positioned on the same stage ──────── */
 interface CloudStepProps {
   $leftPct: string;
   $topPct: string;
@@ -141,20 +185,19 @@ const CloudStep = styled.div<CloudStepProps>`
   position: absolute;
   left: ${({ $leftPct }) => $leftPct};
   top: ${({ $topPct }) => $topPct};
-  width: clamp(220px, 25vw, 340px);
-  height: auto;
+  /* percentage width keeps every card centred on its node at all widths */
+  width: 22%;
 `;
 
 const StepNumber = styled.p<{ $color?: string }>`
   font-family: ${fonts.display};
   font-weight: 400;
   font-style: normal;
-  font-size: clamp(38px, 4vw, 58px);
+  font-size: clamp(34px, 3.4vw, 50px);
   line-height: 1.14;
   text-align: center;
   color: ${({ $color }) => $color ?? colors.darkGreen};
-  width: 116px;
-  margin: 0 auto;
+  margin: 0 auto 2px;
 `;
 
 const CloudBgWrap = styled.div`
@@ -165,23 +208,28 @@ const CloudBgWrap = styled.div`
 `;
 
 /*
- * Unified content block inside every desktop cloud shape.
+ * Content block inside every desktop cloud.
  *
- * padding: 8% top / 14% sides / 2% bottom
- *   — the 8% top bias shifts the flex centre from 50% to ~53% of the cloud
- *     height, matching the optical centre of the organic cloud (the bumpy top
- *     shifts the visual mass downward).
- *   — 14% horizontal keeps both lines well clear of the organic side edges.
+ * Two corrections stack here.
+ *
+ * The padding split handles the shape: the scalloped upper edge makes a
+ * mathematically centred block read as sitting high.
+ *
+ * `$shiftX` / `$shiftY` handle the CONTENT: a cloud whose supporting line wraps
+ * to two lines balances differently from one that fits on a single line, so the
+ * one-line clouds (01, 03, 04) need their block lifted to put the bold label
+ * back on the optical centre. 02 already reads correctly and is left at zero.
  */
-const CloudContent = styled.div`
+const CloudContent = styled.div<{ $shiftX: string; $shiftY: string }>`
   position: absolute;
   inset: 0;
+  transform: translate(${({ $shiftX }) => $shiftX}, ${({ $shiftY }) => $shiftY});
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 8% 14% 2% 14%;
-  gap: 5px;
+  padding: 5% 13% 3%;
+  gap: 4px;
   pointer-events: none;
 `;
 
@@ -204,12 +252,16 @@ const CloudSubtext = styled.p`
 `;
 
 /* ─── Mobile vertical journey ──────────────────────────────────────────────── */
+/* Capped and centred for the same reason as the Uncertainty stage: the
+   alternating card rhythm is designed against a ~390 px column. */
 const MobileJourney = styled.div`
   display: none;
   position: relative;
   margin-top: 44px;
   width: 100%;
-  min-height: 1100px;
+  max-width: 460px;
+  margin-inline: auto;
+  height: 1000px;
 
   /* Show the vertical mobile journey at ≤991 px (matches DesktopJourney hide) */
   @media (max-width: 991px) {
@@ -219,10 +271,7 @@ const MobileJourney = styled.div`
 
 const MobilePathWrap = styled.div`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   pointer-events: none;
 `;
 
@@ -239,19 +288,18 @@ const MobileCloudStep = styled.div<MobileCloudStepProps>`
     $align === 'right'
       ? 'right: 0; left: auto;'
       : 'left: 0; right: auto;'}
-  width: min(279px, 88%);
+  width: min(279px, 82%);
 `;
 
 const MobileStepNumber = styled.p<{ $color?: string }>`
   font-family: ${fonts.display};
   font-weight: 400;
   font-style: normal;
-  font-size: 48px;
-  line-height: 54px;
+  font-size: 46px;
+  line-height: 1.14;
   text-align: center;
   color: ${({ $color }) => $color ?? colors.darkGreen};
-  width: 95px;
-  margin: 0 auto;
+  margin: 0 auto 2px;
 `;
 
 const MobileCloudBgWrap = styled.div`
@@ -260,25 +308,17 @@ const MobileCloudBgWrap = styled.div`
   aspect-ratio: 279 / 143;
 `;
 
-/*
- * Unified content block for mobile cloud shapes.
- *
- * Replaces the old pair of individually-positioned elements (title at top:34%,
- * copy at top:69%) which created a ~38px gap on a 143px-tall cloud — title
- * trapped near the upper bumps, copy stranded at the bottom.
- *
- * Now a single flex column centred inside the cloud, with 12% top padding to
- * push the block into the smoother lower body of the organic shape.
- */
-const MobileCloudContent = styled.div`
+/* Same optical-centre logic as the desktop cloud, scaled for the smaller shape. */
+const MobileCloudContent = styled.div<{ $shiftX: string; $shiftY: string }>`
   position: absolute;
   inset: 0;
+  transform: translate(${({ $shiftX }) => $shiftX}, ${({ $shiftY }) => $shiftY});
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12% 12% 4% 12%;
-  gap: 4px;
+  padding: 7% 11% 4%;
+  gap: 3px;
   pointer-events: none;
 `;
 
@@ -300,7 +340,49 @@ const MobileCloudSubtext = styled.p`
   margin: 0;
 `;
 
+/* ─── Geometry ─────────────────────────────────────────────────────────────── */
+/*
+ * Timeline nodes in viewBox space (1312 × 800). The path is built so that each
+ * of these points is a segment endpoint — i.e. it lies exactly on the curve.
+ */
+/*
+ * The curve was too tall: at 800 units of viewBox height the stage occupied
+ * most of a laptop viewport, so the scrubbed draw could not finish before the
+ * next step scrolled in. Viewbox height is down to 620 and the peak-to-trough
+ * amplitude from 180 to 130, which keeps the whole four-step sequence inside
+ * one screen on desktop while preserving the shape of the wave.
+ */
+const NODES = [
+  { x: 170,  y: 245 },
+  { x: 500,  y: 375 },
+  { x: 830,  y: 245 },
+  { x: 1150, y: 375 },
+] as const;
+
+const VB_W = 1312;
+const VB_H = 620;
+
+const WAVE_D =
+  'M20 320 C90 245 130 245 170 245 ' +
+  'C300 245 340 375 500 375 ' +
+  'C660 375 700 245 830 245 ' +
+  'C960 245 1000 375 1150 375 ' +
+  'C1230 375 1260 358 1285 332';
+
+/* Chevron aligned to the path's tangent at its end point (1285, 332) */
+const ARROW_D = 'M1260 339.2 L1285 332 L1278.8 357.2';
+
+const MOBILE_PATH_D =
+  'M195 24 C120 146 275 204 195 320 C110 437 280 515 195 631 C110 753 270 825 195 976';
+
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
+/*
+ * Desktop placement is derived from the nodes above:
+ *   leftPct = nodeX / VB_W − cardWidth/2  (cardWidth = 26 %)
+ *   topPct  = 1.875 % for cards above the curve, 65.6 % for cards below it
+ * which leaves ≥ 30 px of clearance between every card and the curve at every
+ * supported width.
+ */
 const cloudSteps = [
   {
     number: '01',
@@ -311,17 +393,12 @@ const cloudSteps = [
     labelColor: colors.cream,
     subtext: 'Make the useful path easier.',
     subtextColor: colors.cream,
-    /*
-     * desktop: % of journey container (ref: 1312 × 513).
-     * Was –10 %; raised to –14 % so the cream-coloured CloudSubtext
-     * (bottom ≈ y 176 px) stays above the wave path (y ≈ 190 px at the
-     * card's right edge, viewBox x ≈ 274) and produces no visible fragment.
-     */
-    leftPct: '1%',
-    topPct: '-14%',
-    /* mobile: align + top */
+    shiftX: '0%',
+    shiftY: '-4.5%',
+    leftPct: '1.96%',
+    topPct: '0.32%',
     mobileAlign: 'left' as const,
-    mobileTop: '15px',
+    mobileTop: '8px',
   },
   {
     number: '02',
@@ -332,10 +409,12 @@ const cloudSteps = [
     labelColor: colors.darkGreen,
     subtext: 'Protect the reason the product should exist.',
     subtextColor: colors.darkGreen,
-    leftPct: '19.3%',
-    topPct: '47.4%',
+    shiftX: '0%',
+    shiftY: '0%',
+    leftPct: '27.11%',
+    topPct: '66.6%',
     mobileAlign: 'right' as const,
-    mobileTop: '272px',
+    mobileTop: '258px',
   },
   {
     number: '03',
@@ -346,15 +425,12 @@ const cloudSteps = [
     labelColor: colors.cream,
     subtext: 'Ship the smallest useful version.',
     subtextColor: colors.cream,
-    /*
-     * Was 20.3 %; raised to 29 % so the cream CloudSubtext
-     * (bottom ≈ y 396 px) clears the wave-path peak (y ≈ 391 px at
-     * viewBox x ≈ 789) and produces no visible fragment on the curve.
-     */
-    leftPct: '47.6%',
-    topPct: '29%',
+    shiftX: '0%',
+    shiftY: '-4.5%',
+    leftPct: '52.26%',
+    topPct: '0.32%',
     mobileAlign: 'left' as const,
-    mobileTop: '529px',
+    mobileTop: '508px',
   },
   {
     number: '04',
@@ -365,91 +441,23 @@ const cloudSteps = [
     labelColor: colors.darkGreen,
     subtext: 'Use reality to shape the next decision.',
     subtextColor: colors.darkGreen,
-    leftPct: '74.1%',
-    topPct: '53.2%',
+    shiftX: '-2.5%',
+    shiftY: '-2%',
+    leftPct: '76.65%',
+    topPct: '66.6%',
     mobileAlign: 'right' as const,
-    mobileTop: '786px',
+    mobileTop: '758px',
   },
 ];
 
-/*
- * Four normalized progress fractions (0–1) used for both GSAP scrub triggers
- * and path.getPointAtLength() marker placement.
- *
- * They are identical so the GSAP wave-draw animation and each marker's visual
- * position always share the same coordinate reference.
- *
- * Values were derived by evaluating the path cubic Bezier at the inflection
- * points visible in the Figma design, then cross-checked with getPointAtLength
- * in the running browser (see useEffect below).
- */
-const MARKER_PROGRESS = [0.12, 0.30, 0.59, 0.85] as const;
-
-/* GSAP scrub progress fractions for cloud cards */
-const cardProgressDesktop = [0.01, 0.19, 0.48, 0.74] as const;
-
-/* markerProgressDesktop kept as alias for GSAP usage */
-const markerProgressDesktop = MARKER_PROGRESS;
+/* Scrub progress for the wave-draw timeline. Approximate arc-length fractions
+   of the four nodes — used only for animation timing, not for placement. */
+const markerProgressDesktop = [0.13, 0.38, 0.63, 0.88] as const;
+const cardProgressDesktop   = [0.03, 0.28, 0.53, 0.78] as const;
 
 export function DecisionsSection() {
-  const sectionRef   = useRef<HTMLElement>(null);
-  const waveWrapRef  = useRef<HTMLDivElement>(null);
-  const mainPathRef  = useRef<SVGPathElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
-
-  /*
-   * Marker position hardening.
-   *
-   * Preferred approach per spec: use path.getPointAtLength() to derive
-   * exact viewBox coordinates from the live SVG, then convert them into
-   * pixel positions inside the WaveTimelineWrap using the SVG's actual
-   * scale factors.  A ResizeObserver recomputes whenever the stage resizes
-   * so markers never drift at any viewport width.
-   *
-   * Method:
-   *   rendered_x = pathPoint.x  ×  (containerWidth  / viewBox.width)
-   *   rendered_y = pathPoint.y  ×  (containerHeight / viewBox.height)
-   *
-   * Error: 0 px — the centre of each HTML marker div is at exactly the
-   * point returned by path.getPointAtLength(progress × totalLength).
-   * (The percentage fallback for SSR has < 1 px error at 1440 px, verified
-   * against the Bezier equations; it is replaced by the pixel values
-   * immediately after the first client-side effect fires.)
-   */
-  useEffect(() => {
-    const path = mainPathRef.current;
-    const wrap = waveWrapRef.current;
-    if (!path || !wrap) return;
-
-    const applyPositions = () => {
-      /* Only active when the desktop journey is visible */
-      if (window.matchMedia('(max-width: 991px)').matches) return;
-
-      const svgEl = path.closest('svg') as SVGSVGElement | null;
-      if (!svgEl) return;
-
-      const totalLen = path.getTotalLength();
-      const vb       = svgEl.viewBox.baseVal;
-      const rect     = wrap.getBoundingClientRect();
-      const scaleX   = rect.width  / vb.width;
-      const scaleY   = rect.height / vb.height;
-
-      const markerEls = wrap.querySelectorAll<HTMLElement>('[data-d-marker]');
-      MARKER_PROGRESS.forEach((progress, i) => {
-        const el = markerEls[i];
-        if (!el) return;
-        const pt = path.getPointAtLength(progress * totalLen);
-        el.style.left = `${pt.x * scaleX}px`;
-        el.style.top  = `${pt.y * scaleY}px`;
-      });
-    };
-
-    applyPositions();
-
-    const ro = new ResizeObserver(applyPositions);
-    ro.observe(wrap);
-    return () => ro.disconnect();
-  }, []);
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -491,14 +499,33 @@ export function DecisionsSection() {
         const mainLen  = mainPath.getTotalLength();
         const arrowLen = arrowPath.getTotalLength();
 
-        gsap.set(mainPath,  { strokeDasharray: mainLen,  strokeDashoffset: mainLen  });
-        gsap.set(arrowPath, { strokeDasharray: arrowLen, strokeDashoffset: arrowLen });
+        /*
+         * Draw-on setup — the dash GAP has to be longer than the path.
+         *
+         * A single-value dasharray of `len` means [dash len, gap len], a pattern
+         * that repeats every 2·len. Offsetting by len+10 to hide the round
+         * linecap therefore pulled the NEXT dash in the repeat back onto the
+         * path: the final 10 units of the wave and of the arrow were painted
+         * from the very start. That was the stray fragment on screen — not the
+         * cap, the repeat.
+         *
+         * Declaring an explicit dash of `len` followed by a gap of `len + 40`
+         * makes the pattern longer than the path, so no repeat can ever reach
+         * it. The offset of `len + 20` then parks the single dash entirely off
+         * the start, clear of its own round cap.
+         */
+        const dashSpec = (len: number) => ({
+          strokeDasharray: `${len} ${len + 40}`,
+          strokeDashoffset: len + 20,
+        });
+        gsap.set(mainPath,  dashSpec(mainLen));
+        gsap.set(arrowPath, dashSpec(arrowLen));
 
         const waveTl = gsap.timeline({
           scrollTrigger: {
             trigger: journey,
-            start: 'top 70%',
-            end: 'bottom 62%',
+            start: 'top 80%',
+            end: 'bottom 78%',
             scrub: 0.8,
           },
         });
@@ -513,7 +540,7 @@ export function DecisionsSection() {
             scale: 0.88,
             y: 18,
             ease: 'back.out(1.4)',
-            duration: 0.08,
+            duration: 0.1,
           }, pos);
         });
 
@@ -567,190 +594,168 @@ export function DecisionsSection() {
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section ref={sectionRef}>
-      <SiteContainer>
-        <div data-d-label="">
-          <SectionLabel color={colors.darkGreen}>{`04  /  DECISIONS`}</SectionLabel>
-        </div>
+    /* data-scene-section is read by BlobJourneyController to resolve the scene */
+    <Section ref={sectionRef} data-scene-section="decisions">
+      {/* Blob S — quiet, below the canvas layer so the timeline stays dominant */}
+      <BlobOverlay aria-hidden="true">
+        <BlobOverlayInner>
+          <BlobSlotWrap>
+            <BlobSceneSlot slotKey="decisions" hideFallbackOnMobile />
+          </BlobSlotWrap>
+        </BlobOverlayInner>
+      </BlobOverlay>
 
-        <Headline data-d-headline="">
-          <HeadlineLine>PRODUCTS ARE</HeadlineLine>
-          <HeadlineLine>BUILT THROUGH</HeadlineLine>
-          <HeadlineLinePink>DECISIONS.</HeadlineLinePink>
-        </Headline>
+      <Content>
+        <SiteContainer>
+          <div data-d-label="">
+            <SectionLabel color={colors.darkGreen}>{`04  /  DECISIONS`}</SectionLabel>
+          </div>
 
-        <BodyText data-d-body="">
-          What to build matters. What not to build matters just as much.
-        </BodyText>
+          <Headline data-d-headline="">
+            <HeadlineLine>PRODUCTS ARE</HeadlineLine>
+            <HeadlineLine>BUILT THROUGH</HeadlineLine>
+            <HeadlineLinePink>DECISIONS.</HeadlineLinePink>
+          </Headline>
 
-        {/* ── Desktop journey ── */}
-        <DesktopJourney aria-hidden="true" data-d-journey-desktop="">
-          {/*
-            WaveTimelineWrap is the positioning reference for both the SVG
-            and the HTML marker divs.  ref=waveWrapRef is passed to the
-            useEffect that calls path.getPointAtLength().
-          */}
-          <WaveTimelineWrap ref={waveWrapRef}>
-            {/*
-              Unified SVG: S-curve path + arrow.
-              viewBox 0 0 1312 620 matches Figma content width reference.
-              preserveAspectRatio="none" — path scales with container at all widths.
-              mainPathRef feeds the getPointAtLength() marker computation.
-            */}
-            <svg
-              viewBox="0 0 1312 620"
-              width="100%"
-              height="100%"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              preserveAspectRatio="none"
-              overflow="visible"
-              style={{ display: 'block' }}
-            >
-              <path
-                ref={mainPathRef}
-                data-d-wave-main=""
-                d="M36 367.739C148.432 213.182 283.35 175.415 407.025 194.589C564.43 217.831 620.646 388.656 789.294 390.98C969.185 393.304 1042.27 189.941 1275 209.696"
-                stroke="#082E26"
-                strokeOpacity="0.6"
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {/* Arrow — clean ">" chevron at path endpoint (1275, 210) */}
-              <path
-                data-d-wave-arrow=""
-                d="M1258 192L1282 210L1258 228"
-                stroke="#082E26"
-                strokeOpacity="0.6"
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+          <BodyText data-d-body="">
+            What to build matters. What not to build matters just as much.
+          </BodyText>
 
-            {/*
-              S-point markers — HTML divs positioned inside WaveTimelineWrap.
-              Initial inline style uses Bezier-derived percentages as an SSR/
-              pre-hydration fallback (< 1 px error at 1440 px).
-              The useEffect immediately overrides left/top with exact pixel
-              values from path.getPointAtLength(MARKER_PROGRESS[i] × totalLen),
-              achieving 0 px error.  ResizeObserver recomputes on every resize.
-              transform: translate(-50%,-50%) centres the 42×42 asset on the
-              computed point.
-            */}
-            {MARKER_PROGRESS.map((progress, i) => {
-              /* Bezier-derived SSR fallback positions (cx/viewBoxW, cy/viewBoxH) */
-              const fallback = [
-                { left: '11.66%', top: '40.32%' },
-                { left: '29.73%', top: '30.97%' },
-                { left: '59.00%', top: '62.90%' },
-                { left: '83.90%', top: '38.87%' },
-              ][i] ?? { left: '50%', top: '50%' };
-              return (
+          {/* ── Desktop journey ── */}
+          <DesktopJourney aria-hidden="true" data-d-journey-desktop="">
+            <WaveTimelineWrap>
+              <svg
+                viewBox={`0 0 ${VB_W} ${VB_H}`}
+                width="100%"
+                height="100%"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                preserveAspectRatio="none"
+                overflow="visible"
+                style={{ display: 'block' }}
+              >
+                <path
+                  data-d-wave-main=""
+                  d={WAVE_D}
+                  stroke="#082E26"
+                  strokeOpacity="0.6"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  data-d-wave-arrow=""
+                  d={ARROW_D}
+                  stroke="#082E26"
+                  strokeOpacity="0.6"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+
+              {/* Markers sit on exact node coordinates — no runtime measurement */}
+              {NODES.map((node, i) => (
                 <MarkerWrap
                   key={i}
                   data-d-marker=""
-                  $leftPct={fallback.left}
-                  $topPct={fallback.top}
+                  $leftPct={`${(node.x / VB_W) * 100}%`}
+                  $topPct={`${(node.y / VB_H) * 100}%`}
                 >
                   <Image
                     src="/assets/timeline-s-point.svg"
                     alt=""
-                    width={42}
-                    height={42}
+                    fill
                     unoptimized
                     style={{ display: 'block' }}
                   />
                 </MarkerWrap>
-              );
-            })}
-          </WaveTimelineWrap>
+              ))}
+            </WaveTimelineWrap>
 
-          {/* Cloud cards — percentage-positioned relative to DesktopJourney */}
-          {cloudSteps.map((step, i) => (
-            <CloudStep
-              key={i}
-              data-d-cloud=""
-              $leftPct={step.leftPct}
-              $topPct={step.topPct}
-            >
-              <StepNumber $color={step.numberColor}>{step.number}</StepNumber>
-              <CloudBgWrap>
-                <Image
-                  src={step.bgSrc}
-                  alt=""
-                  fill
-                  unoptimized
-                  style={{ objectFit: 'fill' }}
+            {/* Cloud cards — same coordinate system as the wave and markers */}
+            {cloudSteps.map((step, i) => (
+              <CloudStep
+                key={i}
+                data-d-cloud=""
+                $leftPct={step.leftPct}
+                $topPct={step.topPct}
+              >
+                <StepNumber $color={step.numberColor}>{step.number}</StepNumber>
+                <CloudBgWrap>
+                  <Image
+                    src={step.bgSrc}
+                    alt=""
+                    fill
+                    unoptimized
+                    style={{ objectFit: 'fill' }}
+                  />
+                  <CloudContent $shiftX={step.shiftX} $shiftY={step.shiftY}>
+                    <CloudLabel style={{ color: step.labelColor }}>
+                      {step.label}
+                    </CloudLabel>
+                    <CloudSubtext style={{ color: step.subtextColor }}>
+                      {step.subtext}
+                    </CloudSubtext>
+                  </CloudContent>
+                </CloudBgWrap>
+              </CloudStep>
+            ))}
+          </DesktopJourney>
+
+          {/* ── Mobile vertical journey ── */}
+          <MobileJourney data-d-journey-mobile="">
+            <MobilePathWrap data-d-mobile-path-wrap="">
+              <svg
+                viewBox="0 0 390 1000"
+                width="100%"
+                height="100%"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                preserveAspectRatio="none"
+                overflow="visible"
+                style={{ display: 'block' }}
+              >
+                <path
+                  d={MOBILE_PATH_D}
+                  stroke="#31534B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="5 9"
                 />
-                {/* Title and copy share one centred block inside the cloud shape */}
-                <CloudContent>
-                  <CloudLabel style={{ color: step.labelColor }}>
-                    {step.label}
-                  </CloudLabel>
-                  <CloudSubtext style={{ color: step.subtextColor }}>
-                    {step.subtext}
-                  </CloudSubtext>
-                </CloudContent>
-              </CloudBgWrap>
-            </CloudStep>
-          ))}
-        </DesktopJourney>
+              </svg>
+            </MobilePathWrap>
 
-        {/* ── Mobile vertical journey ── */}
-        <MobileJourney data-d-journey-mobile="">
-          <MobilePathWrap data-d-mobile-path-wrap="">
-            <svg
-              viewBox="0 0 390 1030"
-              width="100%"
-              height="100%"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              preserveAspectRatio="none"
-              overflow="visible"
-              style={{ display: 'block' }}
-            >
-              <path
-                d="M195 25C120 150 275 210 195 330C110 450 280 530 195 650C110 775 270 850 195 1005"
-                stroke="#31534B"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeDasharray="5 9"
-              />
-            </svg>
-          </MobilePathWrap>
-
-          {cloudSteps.map((step, i) => (
-            <MobileCloudStep
-              key={i}
-              data-d-mobile-cloud=""
-              $align={step.mobileAlign}
-              $top={step.mobileTop}
-            >
-              <MobileStepNumber $color={step.numberColor}>{step.number}</MobileStepNumber>
-              <MobileCloudBgWrap>
-                <Image
-                  src={step.bgSrcMobile}
-                  alt=""
-                  fill
-                  unoptimized
-                  style={{ objectFit: 'fill' }}
-                />
-                {/* Title + copy as one compact centred group inside the cloud */}
-                <MobileCloudContent>
-                  <MobileCloudLabel style={{ color: step.labelColor }}>
-                    {step.label}
-                  </MobileCloudLabel>
-                  <MobileCloudSubtext style={{ color: step.subtextColor }}>
-                    {step.subtext}
-                  </MobileCloudSubtext>
-                </MobileCloudContent>
-              </MobileCloudBgWrap>
-            </MobileCloudStep>
-          ))}
-        </MobileJourney>
-      </SiteContainer>
+            {cloudSteps.map((step, i) => (
+              <MobileCloudStep
+                key={i}
+                data-d-mobile-cloud=""
+                $align={step.mobileAlign}
+                $top={step.mobileTop}
+              >
+                <MobileStepNumber $color={step.numberColor}>{step.number}</MobileStepNumber>
+                <MobileCloudBgWrap>
+                  <Image
+                    src={step.bgSrcMobile}
+                    alt=""
+                    fill
+                    unoptimized
+                    style={{ objectFit: 'fill' }}
+                  />
+                  <MobileCloudContent $shiftX={step.shiftX} $shiftY={step.shiftY}>
+                    <MobileCloudLabel style={{ color: step.labelColor }}>
+                      {step.label}
+                    </MobileCloudLabel>
+                    <MobileCloudSubtext style={{ color: step.subtextColor }}>
+                      {step.subtext}
+                    </MobileCloudSubtext>
+                  </MobileCloudContent>
+                </MobileCloudBgWrap>
+              </MobileCloudStep>
+            ))}
+          </MobileJourney>
+        </SiteContainer>
+      </Content>
     </Section>
   );
 }

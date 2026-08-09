@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import { launch, URL } from './lib.mjs';
+const OUT=process.argv[2]; fs.mkdirSync(OUT,{recursive:true});
+const b=await launch(); const p=await b.newPage();
+await p.setViewport({width:1440,height:900,deviceScaleFactor:2});
+await p.goto(URL,{waitUntil:'load',timeout:60000});
+await new Promise(r=>setTimeout(r,2000));
+const y = await p.evaluate(()=>{const e=document.querySelector('#proof');const r=e.getBoundingClientRect();return r.top+window.scrollY+430;});
+await p.evaluate(v=>window.scrollTo(0,v), y);
+await new Promise(r=>setTimeout(r,2600));
+const clipFor = async (sel) => p.evaluate((s)=>{
+  const r=document.querySelector(s).getBoundingClientRect();
+  return {x:r.left-16, y:r.top+window.scrollY-16, width:r.width+32, height:r.height+32};
+}, sel);
+await p.mouse.move(5,5); await new Promise(r=>setTimeout(r,900));
+await p.screenshot({path:`${OUT}/card-rest.png`, clip: await clipFor('#build-in-public')});
+await (await p.$('#build-in-public')).hover();
+await new Promise(r=>setTimeout(r,1200));
+await p.screenshot({path:`${OUT}/card-hover.png`, clip: await clipFor('#build-in-public')});
+await b.close(); console.log('done');

@@ -45,9 +45,21 @@ export const media = {
 export const spacing = {
   desktopPadding: '64px',
   mobilePadding: '24px',
-  navHeight: '100px',        // compact: 72 px content + 28 px wave
-  navHeightMobile: '86px',   // compact: 64 px content + 22 px wave
+  navHeight: '108px',        // 80 px content row + 28 px wave
+  navHeightMobile: '90px',   // 68 px content row + 22 px wave
   containerMax: '1440px',
+} as const;
+
+/**
+ * Shared interaction motion.
+ *
+ * One duration and one easing curve across every hover state on the site, so
+ * nav links, blob CTAs and proof cards all respond with the same character:
+ * quick, damped, no bounce, no glow.
+ */
+export const motion = {
+  hoverDuration: '260ms',
+  hoverEase: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
 } as const;
 
 export const radius = {

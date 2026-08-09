@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import Image from 'next/image';
 import styled from 'styled-components';
-import { colors, fonts } from '@/styles/tokens';
+import { colors, fonts, spacing } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
@@ -15,7 +15,7 @@ const Section = styled.section`
   background-color: ${colors.darkGreen};
   position: relative;
   overflow: hidden;
-  scroll-margin-top: 100px;
+  scroll-margin-top: ${spacing.navHeight};
   padding-top: 68px;
   padding-bottom: 80px;
 
@@ -51,6 +51,7 @@ const TextColumn = styled.div`
   flex-direction: column;
   position: relative;
   z-index: 30;
+  min-width: 0;
 `;
 
 const Headline = styled.h2`
@@ -76,6 +77,12 @@ const HeadlineLine = styled.span`
   }
 `;
 
+/* One accent line. CLARITY is the value the section argues for, so it carries
+   the pink rather than COMPLEXITY, which is the thing being argued against. */
+const HeadlineLinePink = styled(HeadlineLine)`
+  color: ${colors.pink};
+`;
+
 const BodyText = styled.p`
   font-family: ${fonts.body};
   font-weight: 400;
@@ -97,6 +104,7 @@ const BodyText = styled.p`
 const StageColumn = styled.div`
   display: flex;
   flex-direction: column;
+  min-width: 0;
   padding-top: 48px;
 
   @media (max-width: 991px) {
@@ -104,46 +112,55 @@ const StageColumn = styled.div`
   }
 `;
 
-/* ─── ClarityStage — bounded, all labels % relative to it ─────────────────── */
-/* No z-index on ClarityStage — children (ConnectorSVG, DisciplineLabel, BlobSWrap)
-   participate individually in the root stacking context. */
+/* ─── ClarityStage — bounded, everything placed relative to it ─────────────── */
+/*
+ * The stage is the single coordinate system for this section. Its aspect ratio
+ * is deliberately kept close to the connector viewBox (500 × 600 = 5:6) at every
+ * breakpoint, so the curved arrows keep an even stroke weight and are never
+ * visibly sheared by `preserveAspectRatio="none"`.
+ *
+ * No z-index on ClarityStage — children (ConnectorSVG, DisciplineLabel,
+ * BlobSWrap) participate individually in the root stacking context.
+ */
 const ClarityStage = styled.div`
   position: relative;
   width: 100%;
-  /* aspect ratio matches blob S proportions with label breathing room */
+  /* One ratio at EVERY breakpoint. The label ring and its arrows are defined in
+     the 500 × 600 connector space, so any change of ratio would stretch the ring
+     unevenly and reintroduce the inconsistent gaps this layout exists to fix. */
   aspect-ratio: 5 / 6;
-  /* cap height on large screens */
-  max-height: 860px;
+  /*
+   * Capped by WIDTH, not height. A max-height would squash the stage away from
+   * 5:6 on large screens and shear every connector, because the SVG uses
+   * preserveAspectRatio="none". Capping the width keeps the ratio exact at all
+   * sizes, so stroke weights stay even and arrowheads stay square.
+   */
+  max-width: 700px;
+  margin-inline: auto;
 
   @media (max-width: 991px) {
-    aspect-ratio: 1 / 1.2;
-    max-height: 500px;
+    max-width: 460px;
     margin-top: 16px;
   }
 
   @media (max-width: 767px) {
-    aspect-ratio: 1 / 1.3;
-    max-height: none;
+    max-width: none;
   }
 `;
 
 /* Blob S slot — centred in stage.
+   Width is tuned against the label columns so the S body and the labels each
+   own their own band of the stage and never sit on top of each other.
    filter creates a stacking context at z-index: auto — below canvas (z-index: 20).
    The persistent canvas blob renders above this slot's static SVG fallback. */
 const BlobSWrap = styled.div`
   position: absolute;
-  /* 68% wide, aspect-ratio preserves height */
-  width: 68%;
+  width: 50%;
   aspect-ratio: 500 / 660;
-  top: 5%;
+  top: 9%;
   left: 50%;
   transform: translateX(-50%);
   filter: drop-shadow(0px 28px 21px rgba(8, 46, 38, 0.42));
-
-  @media (max-width: 767px) {
-    width: 62%;
-    top: 8%;
-  }
 `;
 
 /* Connector SVG — above canvas (z-index: 30 > canvas z-index: 20).
@@ -159,45 +176,60 @@ const ConnectorSVG = styled.svg`
 `;
 
 /* Discipline labels — above canvas (z-index: 30).
-   position: absolute inside ClarityStage (no stacking context) → root context. */
+   Anchored to the stage edge they belong to (left: 0 or right: 0) rather than
+   to a hand-tuned percentage, so they hold their column at every width and can
+   never drift over the Blob S or out of the stage. */
 interface DisciplineLabelProps {
-  $leftPct: string;
+  $align: 'left' | 'right' | 'center';
+  /* Distance of the label's INNER edge from the matching stage edge */
+  $posPct: string;
   $topPct: string;
-  $mobileLeftPct: string;
-  $mobileTopPct: string;
-  $color: string;
 }
 
+/*
+ * Labels sit on a ring around the Blob S rather than in two flat columns.
+ *
+ * Each one is anchored by the edge that faces the blob, a fixed distance from
+ * its own arrow, so the gaps stay consistent at every viewport size.
+ *
+ * Three labels use a smaller gap than the rest. PRODUCT THINKING, AI and
+ * BUSINESS sit on near-horizontal rays (or wrap to two lines), so their whole
+ * gap is spent on a single axis and reads larger than the same measurement on
+ * the diagonal rays. TECHNOLOGY and DESIGN are the reference: the smaller
+ * numeric gap on those three is what makes all seven look equal.
+ *
+ * All seven share one neutral cream tone. The pink and lime accents were
+ * removed so the ring reads as a single system instead of two highlighted
+ * disciplines plus five quiet ones.
+ */
 const DisciplineLabel = styled.p<DisciplineLabelProps>`
   position: absolute;
-  left: ${({ $leftPct }) => $leftPct};
   top: ${({ $topPct }) => $topPct};
+  ${({ $align, $posPct }) => {
+    if ($align === 'left')  return `left: ${$posPct}; text-align: left;`;
+    if ($align === 'right') return `right: ${$posPct}; text-align: right;`;
+    return `left: ${$posPct}; transform: translateX(-50%); text-align: center;`;
+  }}
   font-family: ${fonts.body};
   font-weight: 600;
-  font-size: 13px;
-  line-height: 18px;
-  letter-spacing: 1.82px;
-  color: ${({ $color }) => $color};
-  white-space: nowrap;
+  font-size: clamp(11px, 1.05vw, 13px);
+  line-height: 1.35;
+  letter-spacing: 0.13em;
+  color: ${colors.creamBody};
   pointer-events: none;
-  max-width: 30%;
+  max-width: 21%;
   z-index: 30;
 
   @media (max-width: 991px) {
     font-size: 11px;
-    line-height: 15px;
-    letter-spacing: 1.3px;
-    left: ${({ $mobileLeftPct }) => $mobileLeftPct};
-    top: ${({ $mobileTopPct }) => $mobileTopPct};
-    white-space: normal;
-    max-width: 28%;
+    letter-spacing: 0.1em;
+    max-width: 25%;
   }
 
   @media (max-width: 767px) {
-    font-size: 10px;
-    line-height: 14px;
-    letter-spacing: 1.1px;
-    max-width: 30%;
+    font-size: 9.5px;
+    letter-spacing: 0.07em;
+    max-width: 28%;
   }
 `;
 
@@ -240,10 +272,31 @@ const InteractionNote = styled.div`
   max-width: 100%;
   z-index: 30;
 
+  /*
+   * The copy stays LEFT-aligned; only its vertical placement is corrected.
+   *
+   * Vertical padding is deliberately ZERO here. Percentage padding resolves
+   * against the containing block's WIDTH, not its height, so on a 420 × 147
+   * bubble a "6% / 14%" split was spending 84 px of vertical padding inside a
+   * 147 px box — which is why tuning those numbers moved the text unpredictably.
+   *
+   * With no vertical padding the flex centring is exact, and using gap rather
+   * than a margin on the label means the content box wraps the ink with no
+   * trailing space to throw the centre off. The small translate is the only
+   * optical correction, lifting the block a couple of pixels off centre.
+   */
   .note-content {
-    position: relative;
+    position: absolute;
+    inset: 0;
     z-index: 1;
-    padding: 40px 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 15%;
+    text-align: left;
+    transform: translateY(-2px);
   }
 
   @media (max-width: 991px) {
@@ -266,7 +319,6 @@ const InteractionLabel = styled.p`
   letter-spacing: 0.5px;
   color: #33d966;
   text-transform: uppercase;
-  margin-bottom: 8px;
 `;
 
 const InteractionText = styled.p`
@@ -277,85 +329,81 @@ const InteractionText = styled.p`
   color: ${colors.creamBody};
 `;
 
+/* Breakpoint mirrors BlobJourneyCanvas's `enablePointer` query (min-width: 992
+   plus a fine pointer): below that the blob does not react to a cursor, so the
+   note must not claim it does. */
 const DesktopOnly = styled.span`
-  @media (max-width: 767px) { display: none; }
+  @media (max-width: 991px) { display: none; }
 `;
 const MobileOnly = styled.span`
   display: none;
-  @media (max-width: 767px) { display: inline; }
+  @media (max-width: 991px) { display: inline; }
 `;
 
 /* ─── Data ──────────────────────────────────────────────────────────────────── */
+/*
+ * Variant B connectors.
+ *
+ * Each discipline is joined to the Blob S by a curved, art-directed arrow drawn
+ * in the stage's own 500 × 600 coordinate space. Each `d` string carries the
+ * curve *and* its arrowhead in one path, so a single stroke-dasharray reveal
+ * draws the whole connector including the tip — the arrows are never a separate
+ * decorative element that can fall out of sync.
+ *
+ * `weight` marks the two disciplines that carry brand accent colour (AI = pink,
+ * BUSINESS = lime); the rest stay quiet so the composition keeps one hierarchy.
+ */
 const disciplineLabels = [
   {
     text: 'PRODUCT THINKING',
-    color: colors.cream,
-    leftPct: '8%',
-    topPct: '6%',
-    mobileLeftPct: '2%',
-    mobileTopPct: '2%',
-    lineFrom: { x: 28, y: 9 },
-    lineTo: { x: 36, y: 18 },
+    align: 'right' as const,
+    /* Sits one step farther out than the rest: the two-line label reads as
+       crowding its arrow at the shared gap. */
+    posPct: '65.71%',
+    topPct: '3.32%',
+    d: 'M182 47.6 C177.9 68.1 184.5 84.1 202 95.6 M196.6 86.6 L202 95.6 L191.6 94.2',
   },
   {
     text: 'RESEARCH',
-    color: colors.muted,
-    leftPct: '75%',
-    topPct: '19%',
-    mobileLeftPct: '63%',
-    mobileTopPct: '16%',
-    lineFrom: { x: 75, y: 21 },
-    lineTo: { x: 66, y: 28 },
+    align: 'left' as const,
+    posPct: '62.98%',
+    topPct: '3.45%',
+    d: 'M314.9 41.4 C298.3 54.1 292.7 70.5 298.3 90.6 M300.2 80.3 L298.3 90.6 L291.3 82.8',
   },
   {
     text: 'AI',
-    color: colors.pink,
-    leftPct: '88%',
-    topPct: '46%',
-    mobileLeftPct: '74%',
-    mobileTopPct: '46%',
-    lineFrom: { x: 88, y: 48 },
-    lineTo: { x: 80, y: 50 },
+    align: 'left' as const,
+    posPct: '83.62%',
+    topPct: '26.34%',
+    d: 'M410.5 167.1 C390.3 161.7 374 167.4 361.4 184.1 M370.7 179.3 L361.4 184.1 L363.4 173.8',
   },
   {
     text: 'UX',
-    color: colors.cream,
-    leftPct: '77%',
-    topPct: '72%',
-    mobileLeftPct: '70%',
-    mobileTopPct: '71%',
-    lineFrom: { x: 77, y: 73 },
-    lineTo: { x: 70, y: 70 },
+    align: 'left' as const,
+    posPct: '76.32%',
+    topPct: '57.45%',
+    d: 'M381.6 340.9 C376.9 320.5 364.3 308.7 343.7 305.3 M352.2 311.4 L343.7 305.3 L353.7 302.3',
   },
   {
     text: 'DESIGN',
-    color: colors.muted,
-    leftPct: '5%',
-    topPct: '86%',
-    mobileLeftPct: '2%',
-    mobileTopPct: '84%',
-    lineFrom: { x: 14, y: 87 },
-    lineTo: { x: 27, y: 80 },
+    align: 'center' as const,
+    posPct: '52.04%',
+    topPct: '70.62%',
+    d: 'M260.2 415.2 C271.4 397.5 270.8 380.2 258.6 363.2 M260.4 373.6 L258.6 363.2 L267.8 368.2',
   },
   {
     text: 'TECHNOLOGY',
-    color: colors.cream,
-    leftPct: '2%',
-    topPct: '60%',
-    mobileLeftPct: '2%',
-    mobileTopPct: '62%',
-    lineFrom: { x: 18, y: 62 },
-    lineTo: { x: 24, y: 60 },
+    align: 'right' as const,
+    posPct: '72.94%',
+    topPct: '59.58%',
+    d: 'M135.3 352.9 C155.6 347.8 167.2 335 170.1 314.2 M164.3 322.9 L170.1 314.2 L173.4 324.2',
   },
   {
     text: 'BUSINESS',
-    color: colors.lime,
-    leftPct: '4%',
-    topPct: '33%',
-    mobileLeftPct: '2%',
-    mobileTopPct: '40%',
-    lineFrom: { x: 16, y: 36 },
-    lineTo: { x: 27, y: 42 },
+    align: 'right' as const,
+    posPct: '82.69%',
+    topPct: '29.09%',
+    d: 'M94.3 182.9 C108.5 198.3 125.3 202.3 144.9 195 M134.5 194 L144.9 195 L137.7 202.6',
   },
 ];
 
@@ -375,7 +423,9 @@ export function ClaritySection() {
     const headline    = section.querySelector('[data-c-headline]');
     const lines       = headline ? headline.querySelectorAll('span') : [];
     const body        = section.querySelector('[data-c-body]');
-    const connectors  = Array.from(section.querySelectorAll('[data-c-connector]'));
+    const connectors  = Array.from(
+      section.querySelectorAll<SVGPathElement>('[data-c-connector]'),
+    );
     const disciplines = Array.from(section.querySelectorAll('[data-c-discipline]'));
     const note        = section.querySelector('[data-c-note]');
     const statement   = section.querySelector('[data-c-statement]');
@@ -387,6 +437,23 @@ export function ClaritySection() {
      *
      * Order: label → headline → body → connectors → labels → note → statement.
      */
+    /*
+     * Each connector path carries its curve AND its arrowhead, so a single
+     * stroke-dashoffset sweep draws the line and lands the arrow tip on the
+     * Blob S — the motion reads as the discipline reaching the product, which
+     * is the point of the section.
+     */
+    connectors.forEach(path => {
+      const len = path.getTotalLength();
+      /* Dash shorter than the gap, so the repeat can never reach back onto the
+         path and paint a fragment before the draw starts — see DecisionsSection. */
+      gsap.set(path, {
+        strokeDasharray: `${len} ${len + 30}`,
+        strokeDashoffset: len + 15,
+        opacity: 1,
+      });
+    });
+
     gsap.timeline({
       scrollTrigger: { trigger: section, start: 'top 80%' },
       defaults: { ease: 'power2.out' },
@@ -399,18 +466,20 @@ export function ClaritySection() {
         stagger: 0.06,
       }, '-=0.1')
       .from(body, { opacity: 0, y: isMobile ? 6 : 10, duration: 0.32 }, '-=0.1')
-      /* Connector lines reveal */
-      .from(connectors, {
-        opacity: 0,
-        duration: 0.22,
-        stagger: 0.025,
+      /* Connectors draw themselves toward the Blob S */
+      .to(connectors, {
+        strokeDashoffset: 0,
+        duration: isMobile ? 0.4 : 0.52,
+        stagger: 0.06,
+        ease: 'power2.inOut',
       }, '-=0.18')
       /* All seven discipline labels enter */
+      /* Opacity only: the centred label uses translateX(-50%), and a GSAP `y`
+         tween would take over `transform` and drop that centring. */
       .from(disciplines, {
         opacity: 0,
-        y: isMobile ? 4 : 6,
-        duration: 0.22,
-        stagger: 0.03,
+        duration: 0.24,
+        stagger: 0.035,
       }, '-=0.08')
       .from(note, { opacity: 0, y: 8, duration: 0.22 }, '-=0.06')
       .from(stmtLines, {
@@ -433,7 +502,7 @@ export function ClaritySection() {
           {/* ── Text column ── */}
           <TextColumn>
             <Headline data-c-headline="">
-              <HeadlineLine>CLARITY</HeadlineLine>
+              <HeadlineLinePink>CLARITY</HeadlineLinePink>
               <HeadlineLine>BEFORE</HeadlineLine>
               <HeadlineLine>COMPLEXITY.</HeadlineLine>
             </Headline>
@@ -453,24 +522,23 @@ export function ClaritySection() {
                 <BlobSceneSlot slotKey="clarity" />
               </BlobSWrap>
 
-              {/* Connector lines — z-index: 30, above canvas (z-index: 20) */}
+              {/* Curved connectors — z-index: 30, above canvas (z-index: 20) */}
               <ConnectorSVG
-                viewBox="0 0 100 100"
+                viewBox="0 0 500 600"
                 preserveAspectRatio="none"
                 aria-hidden="true"
               >
                 {disciplineLabels.map((d) => (
-                  <line
+                  <path
                     key={d.text}
                     data-c-connector=""
-                    x1={d.lineFrom.x}
-                    y1={d.lineFrom.y}
-                    x2={d.lineTo.x}
-                    y2={d.lineTo.y}
-                    stroke={colors.muted}
-                    strokeWidth="0.5"
-                    strokeOpacity="0.4"
+                    d={d.d}
+                    fill="none"
+                    stroke={colors.cream}
+                    strokeOpacity={0.45}
+                    strokeWidth="2.1"
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 ))}
               </ConnectorSVG>
@@ -480,11 +548,9 @@ export function ClaritySection() {
                 <DisciplineLabel
                   key={d.text}
                   data-c-discipline=""
-                  $leftPct={d.leftPct}
+                  $align={d.align}
+                  $posPct={d.posPct}
                   $topPct={d.topPct}
-                  $mobileLeftPct={d.mobileLeftPct}
-                  $mobileTopPct={d.mobileTopPct}
-                  $color={d.color}
                 >
                   {d.text}
                 </DisciplineLabel>

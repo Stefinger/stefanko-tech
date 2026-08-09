@@ -137,18 +137,25 @@ export function BlobJourneyCanvas({ reducedMotion }: BlobJourneyCanvasProps) {
           {/*
            * Studio lighting — balanced for NoToneMapping + SRGBColorSpace.
            *
-           * Ambient at 0.9: minimum surface colour = 90% of #FF6FAE.
-           * Two directional lights add form without blowing highlights white.
+           * Three.js applies physically-correct light units (r155+), so a
+           * Lambertian surface reflects irradiance/π. Ambient therefore has to
+           * be π-scaled to reach the true albedo at all.
            *
-           * ambientLight 0.9:  pink in all shadow areas
-           * directional  0.55: principal form key (white highlights, subtle)
-           * directional  0.25: warm fill from below-left (pink-tinted)
+           * Back to a three-light setup. The fourth, rim light added during the
+           * deep-3D pass drew a bright outline along the far edge, and that
+           * highlight was the single biggest contributor to the object looking
+           * over-worked. Ambient carries more of the surface again, so the blob
+           * reads as brand pink first and as a solid second.
            *
-           * No emissive. No bloom. Matte roughness = 0.72 limits specular.
+           * ambientLight 1.55: surface colour, unmistakably brand pink
+           * directional  1.25: principal form key, upper front-right
+           * directional  0.55: warm bounce from below-left (pink-tinted)
+           *
+           * No emissive. No bloom.
            */}
-          <ambientLight intensity={0.9} />
-          <directionalLight position={[3, 5, 4]}  intensity={0.55} color="#ffffff" />
-          <directionalLight position={[-2, -1, 2]} intensity={0.25} color="#ffc8dc" />
+          <ambientLight intensity={1.55} />
+          <directionalLight position={[3, 5, 4]}   intensity={1.25} color="#ffffff" />
+          <directionalLight position={[-2, -1, 2]} intensity={0.55} color="#ffc8dc" />
 
           <BlobJourneyMesh storeRef={storeRef} enablePointer={enablePointer} />
 

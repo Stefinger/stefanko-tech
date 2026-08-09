@@ -1,10 +1,12 @@
 'use client';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from '@/lib/gsap';
 import { useBlobJourneyStore } from './BlobJourneyContext';
 import {
   SCENE_CONFIGS,
+  SCENE_ORDER,
+  MOBILE_MAX_W,
   PX_PER_WU,
   BLOB_NATURAL_W,
   BLOB_NATURAL_H,
@@ -41,6 +43,16 @@ function computeWorldPos(
   };
 }
 
+// ── Section band cache — used to resolve the active scene from scrollY ────────
+// One band per scene section, in document order. Bands are contiguous because
+// the sections themselves are contiguous, so exactly one scene is active at any
+// scroll position — the Blob S is never orphaned between sections.
+interface SceneBand {
+  scene: Exclude<SceneName, 'hidden'>;
+  top: number;    // absolute document Y of the section top
+  bottom: number; // absolute document Y of the section bottom
+}
+
 // ── Controller component ──────────────────────────────────────────────────────
 interface BlobJourneyControllerProps {
   reducedMotion: boolean;
@@ -48,6 +60,7 @@ interface BlobJourneyControllerProps {
 
 export function BlobJourneyController({ reducedMotion }: BlobJourneyControllerProps) {
   const storeRef = useBlobJourneyStore();
+  const bandsRef = useRef<SceneBand[]>([]);
 
   // Re-cache all currently registered slot positions
   const cacheAllSlots = useCallback(() => {
@@ -60,27 +73,51 @@ export function BlobJourneyController({ reducedMotion }: BlobJourneyControllerPr
     });
   }, [storeRef]);
 
+  // Re-cache the scroll bands of every scene section
+  const cacheAllBands = useCallback(() => {
+    const bands: SceneBand[] = [];
+    SCENE_ORDER.forEach(scene => {
+      const el = document.querySelector<HTMLElement>(`[data-scene-section="${scene}"]`);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const top = rect.top + window.scrollY;
+      bands.push({ scene, top, bottom: top + rect.height });
+    });
+    bandsRef.current = bands;
+  }, []);
+
+  // Which scene owns the given scroll position?
+  // The probe point is the vertical centre of the viewport, so the handover
+  // between two sections happens exactly when their shared edge crosses it.
+  const resolveScene = useCallback((scrollY: number, vpH: number): SceneName => {
+    const bands = bandsRef.current;
+    if (bands.length === 0) return 'hidden';
+    const probe = scrollY + vpH * 0.5;
+    if (probe < bands[0].top) return bands[0].scene;
+    for (const band of bands) {
+      if (probe < band.bottom) return band.scene;
+    }
+    // Past the last section (footer) — stay with the closing scene
+    return bands[bands.length - 1].scene;
+  }, []);
+
   // Update target world position from cached slot + current scrollY
   const syncTargetPosition = useCallback((scene: SceneName) => {
     const store = storeRef.current;
-    if (scene === 'hidden') return;
     const slotKey = getSlotKeyForScene(scene, store.vpW);
-    const cached = store.cachedSlots[slotKey];
+    if (!slotKey) return;
+
+    let cached = store.cachedSlots[slotKey];
     if (!cached) {
-      // Slot not cached yet — try live measure
+      // Slot not cached yet — try a live measure
       const el = store.slots[slotKey];
-      if (el) {
-        const fresh = measureSlotAbsolute(el);
-        if (fresh) {
-          store.cachedSlots[slotKey] = fresh;
-          const pos = computeWorldPos(fresh, store.scrollY, store.vpW, store.vpH);
-          store.targetWorldX = pos.worldX;
-          store.targetWorldY = pos.worldY;
-          store.targetScale  = pos.scale;
-        }
-      }
-      return;
+      if (!el) return;
+      const fresh = measureSlotAbsolute(el);
+      if (!fresh) return;
+      store.cachedSlots[slotKey] = fresh;
+      cached = fresh;
     }
+
     const pos = computeWorldPos(cached, store.scrollY, store.vpW, store.vpH);
     store.targetWorldX = pos.worldX;
     store.targetWorldY = pos.worldY;
@@ -92,14 +129,35 @@ export function BlobJourneyController({ reducedMotion }: BlobJourneyControllerPr
     const store = storeRef.current;
     const cfg = SCENE_CONFIGS[scene];
 
-    store.targetScene       = scene;
-    store.targetOpacity     = cfg.opacity;
-    store.targetDepthScale  = cfg.depthScale;
-    store.targetIdleAmount  = cfg.idleAmount;
+    // Sections the travelling blob sits out on phones. Position still tracks
+    // the slot, so when it fades back in for the next scene it is already in
+    // the right place — nothing flies across the page.
+    const skipped = Boolean(cfg.skipOnMobile) && store.vpW <= MOBILE_MAX_W;
+
+    store.targetScene         = scene;
+    store.targetOpacity       = skipped ? 0 : cfg.opacity;
+    store.targetDepthScale    = cfg.depthScale;
+    store.targetIdleAmount    = cfg.idleAmount;
     store.targetPointerAmount = cfg.pointerAmount;
 
     syncTargetPosition(scene);
   }, [storeRef, syncTargetPosition]);
+
+  // Resolve + apply the scene for the current scroll position.
+  //
+  // `force` re-applies the full scene config even when the scene has not
+  // changed. Needed after a resize: crossing the mobile breakpoint flips
+  // `skipOnMobile` for the CURRENT scene, and a scroll-only sync would keep
+  // the stale opacity.
+  const syncScene = useCallback((force = false) => {
+    const store = storeRef.current;
+    const next = resolveScene(store.scrollY, store.vpH);
+    if (force || next !== store.targetScene) {
+      setScene(next);
+    } else {
+      syncTargetPosition(next);
+    }
+  }, [storeRef, resolveScene, setScene, syncTargetPosition]);
 
   // ── Pointer listener ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -118,34 +176,31 @@ export function BlobJourneyController({ reducedMotion }: BlobJourneyControllerPr
     return () => window.removeEventListener('pointermove', onMove);
   }, [reducedMotion, storeRef]);
 
-  // ── Scroll listener — updates scrollY + resyncs active scene position ─────
+  // ── Scroll listener — updates scrollY, resolves scene, resyncs position ───
   useEffect(() => {
     if (reducedMotion) return;
     const store = storeRef.current;
 
     const onScroll = () => {
       store.scrollY = window.scrollY;
-      if (store.targetScene !== 'hidden') {
-        syncTargetPosition(store.targetScene);
-      }
+      syncScene(false);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [reducedMotion, storeRef, syncTargetPosition]);
+  }, [reducedMotion, storeRef, syncScene]);
 
-  // ── ResizeObserver — re-caches slots, updates viewport, resyncs ──────────
+  // ── ResizeObserver — re-caches slots and bands, updates viewport, resyncs ──
   useEffect(() => {
     if (reducedMotion) return;
     const store = storeRef.current;
 
     const update = () => {
-      store.vpW   = window.innerWidth;
-      store.vpH   = window.innerHeight;
+      store.vpW     = window.innerWidth;
+      store.vpH     = window.innerHeight;
       store.scrollY = window.scrollY;
       cacheAllSlots();
-      if (store.targetScene !== 'hidden') {
-        syncTargetPosition(store.targetScene);
-      }
+      cacheAllBands();
+      syncScene(true);
       ScrollTrigger.refresh();
     };
 
@@ -170,116 +225,65 @@ export function BlobJourneyController({ reducedMotion }: BlobJourneyControllerPr
       window.removeEventListener('resize', update);
       ro.disconnect();
     };
-  }, [reducedMotion, storeRef, cacheAllSlots, syncTargetPosition]);
+  }, [reducedMotion, storeRef, cacheAllSlots, cacheAllBands, syncScene]);
 
-  // ── ScrollTrigger setup ───────────────────────────────────────────────────
+  // ── Initial setup — runs after layout has settled ─────────────────────────
   useGSAP(() => {
     if (reducedMotion) return;
 
     const store = storeRef.current;
 
-    // Init viewport
-    store.vpW    = window.innerWidth;
-    store.vpH    = window.innerHeight;
+    store.vpW     = window.innerWidth;
+    store.vpH     = window.innerHeight;
     store.scrollY = window.scrollY;
-
-    // Wait one frame for slots to register and positions to settle
-    const setup = () => {
-      cacheAllSlots();
-
-      const heroEl    = document.querySelector('[data-scene-section="hero"]')    as HTMLElement | null;
-      const clarityEl = document.querySelector('[data-scene-section="clarity"]') as HTMLElement | null;
-      const finalEl   = document.querySelector('[data-scene-section="final"]')   as HTMLElement | null;
-
-      if (!heroEl || !clarityEl || !finalEl) return;
-
-      // ── Hero: visible at page top, hide as Hero exits viewport ────────────
-      ScrollTrigger.create({
-        trigger: heroEl,
-        start: 'top top',
-        end: 'bottom top',
-        onEnter:     () => setScene('hero'),
-        onLeave:     () => setScene('hidden'),
-        onEnterBack: () => setScene('hero'),
-        // onLeaveBack fires when scrolled above Hero — shouldn't happen
-      });
-
-      // ── Clarity: fade in as section approaches, fade out on exit ─────────
-      ScrollTrigger.create({
-        trigger: clarityEl,
-        start: 'top 85%',
-        end: 'bottom top',
-        onEnter:     () => setScene('clarity'),
-        onLeave:     () => setScene('hidden'),
-        onEnterBack: () => setScene('clarity'),
-        onLeaveBack: () => setScene('hidden'),
-      });
-
-      // ── Final CTA: fade in on approach, hide after section exits ─────────
-      ScrollTrigger.create({
-        trigger: finalEl,
-        start: 'top 80%',
-        end: 'bottom top',
-        onEnter:     () => setScene('final'),
-        onLeave:     () => setScene('hidden'),
-        onEnterBack: () => setScene('final'),
-        onLeaveBack: () => setScene('hidden'),
-      });
-
-      // Determine initial scene based on current scroll position
-      const scrollY = window.scrollY;
-      if (clarityEl && scrollY >= clarityEl.offsetTop - window.innerHeight * 0.85 &&
-          scrollY < clarityEl.offsetTop + clarityEl.offsetHeight) {
-        setScene('clarity');
-      } else if (finalEl && scrollY >= finalEl.offsetTop - window.innerHeight * 0.8 &&
-          scrollY < finalEl.offsetTop + finalEl.offsetHeight) {
-        setScene('final');
-      } else if (heroEl && scrollY < heroEl.offsetTop + heroEl.offsetHeight) {
-        setScene('hero');
-      } else {
-        setScene('hidden');
-      }
-
-      ScrollTrigger.refresh();
-    };
 
     // A single RAF ensures layout is complete and all child useEffects have run
     const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(setup);
+      requestAnimationFrame(() => {
+        cacheAllSlots();
+        cacheAllBands();
+        syncScene();
+        ScrollTrigger.refresh();
+      });
     });
 
     return () => cancelAnimationFrame(raf);
   }, { dependencies: [reducedMotion], revertOnUpdate: true });
 
-  // ── Font-load and hash-navigation resync ─────────────────────────────────
+  // ── Font-load, ScrollTrigger-refresh and hash-navigation resync ───────────
   useEffect(() => {
     if (reducedMotion) return;
     const store = storeRef.current;
 
+    const resync = () => {
+      store.scrollY = window.scrollY;
+      cacheAllSlots();
+      cacheAllBands();
+      syncScene();
+    };
+
     const onHashChange = () => {
-      // After hash-jump, let browser scroll settle then refresh
+      // After a hash jump, let the browser scroll settle then refresh
       requestAnimationFrame(() => {
-        store.scrollY = window.scrollY;
-        cacheAllSlots();
+        resync();
         ScrollTrigger.refresh();
-        if (store.targetScene !== 'hidden') {
-          syncTargetPosition(store.targetScene);
-        }
       });
     };
 
+    // Section heights change as GSAP entrance timelines register — every
+    // ScrollTrigger.refresh() (from any section) re-measures the bands too.
+    ScrollTrigger.addEventListener('refresh', resync);
     window.addEventListener('hashchange', onHashChange);
     document.fonts.ready.then(() => {
-      store.scrollY = window.scrollY;
-      cacheAllSlots();
+      resync();
       ScrollTrigger.refresh();
-      if (store.targetScene !== 'hidden') {
-        syncTargetPosition(store.targetScene);
-      }
     });
 
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, [reducedMotion, storeRef, cacheAllSlots, syncTargetPosition]);
+    return () => {
+      ScrollTrigger.removeEventListener('refresh', resync);
+      window.removeEventListener('hashchange', onHashChange);
+    };
+  }, [reducedMotion, storeRef, cacheAllSlots, cacheAllBands, syncScene]);
 
   // Renders nothing — pure controller logic
   return null;

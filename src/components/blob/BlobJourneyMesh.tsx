@@ -24,13 +24,25 @@ function buildGeometry(): THREE.BufferGeometry {
     const shapes = parsed.paths.flatMap(p => p.toShapes());
     if (shapes.length === 0) return new THREE.BufferGeometry();
 
+    /*
+     * Extrusion depth, pulled back from the deep-3D experiment.
+     *
+     * depth 150 / bevelThickness 72 made the object read as over-modelled —
+     * more like a rendered 3D exercise than the approved Blob S. These values
+     * sit between that and the original 50/30: still clearly a solid with a
+     * soft rounded edge, without the heavy sculpted look.
+     *
+     * `bevelSize` is back to 20 — it is the only value that widens the XY face,
+     * so keeping it at the original figure holds the silhouette to the approved
+     * outline and to the static SVG fallback.
+     */
     const geo = new THREE.ExtrudeGeometry(shapes, {
-      depth: 50,
+      depth: 80,
       bevelEnabled: true,
-      bevelThickness: 30,
+      bevelThickness: 42,
       bevelSize: 20,
-      bevelSegments: 6,
-      curveSegments: 24,
+      bevelSegments: 7,
+      curveSegments: 26,
     });
 
     geo.scale(1, -1, 1);
@@ -138,14 +150,16 @@ export function BlobJourneyMesh({ storeRef, enablePointer }: BlobJourneyMeshProp
       cur.idleAmount    = 0;
       cur.pointerAmount = 0;
 
-      // 3. Full opacity
-      cur.opacity = 1;
+      // 3. Match the scene's own opacity — the static SVG fallback in each slot
+      //    renders at the same value, so the swap is invisible in every scene,
+      //    including the subtle background ones (Uncertainty, Decisions, …).
+      cur.opacity = cfg.opacity;
 
       // 4. Apply directly to Three.js — no lerp
       mesh.position.set(cur.x, cur.y, 0);
       mesh.scale.set(cur.xyScale, cur.xyScale, cur.xyScale); // depthScale = 1
       mesh.rotation.set(0, 0, 0);
-      mat.opacity = 1;
+      mat.opacity = cur.opacity;
 
       // 5. Atomically hide the static SVG fallbacks
       hideFallbacks(store);
@@ -226,14 +240,19 @@ export function BlobJourneyMesh({ storeRef, enablePointer }: BlobJourneyMeshProp
   return (
     <mesh ref={meshRef} geometry={geometry}>
       {/*
-       * Matte pink — meshStandardMaterial with NoToneMapping renderer (Canvas flat).
-       * color="#FF6FAE" is treated as sRGB by Three.js r152+ and output correctly.
-       * roughness=0.72 keeps specular spread wide. No emissive, no bloom.
+       * Soft-matte pink — meshStandardMaterial with a NoToneMapping renderer
+       * (Canvas `flat`). color="#FF6FAE" is treated as sRGB by Three.js r152+
+       * and output correctly.
+       *
+       * roughness 0.66 — softer than the 0.52 used during the deep-3D pass,
+       * which produced a tight, almost lacquered highlight. This keeps a gentle
+       * sheen across the bevel without the object looking polished.
+       * No emissive, no bloom, no environment map.
        */}
       <meshStandardMaterial
         ref={matRef}
         color="#FF6FAE"
-        roughness={0.72}
+        roughness={0.66}
         metalness={0}
         side={THREE.FrontSide}
         transparent

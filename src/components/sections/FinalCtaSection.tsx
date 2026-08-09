@@ -1,13 +1,11 @@
 'use client';
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
-import Image from 'next/image';
 import styled from 'styled-components';
-import { colors, fonts, media } from '@/styles/tokens';
+import { colors, fonts, media, spacing } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { BlobButton } from '@/components/ui/BlobButton';
-import { SecondaryExploreCta } from '@/components/ui/SecondaryExploreCta';
+import { BlobCta } from '@/components/ui/BlobCta';
 import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
@@ -18,31 +16,35 @@ const DesktopBr = styled.br`
   }
 `;
 
-/* ─── Section shell ──────────────────────────────────────────────────────── */
+/* ─── Section shell ──────────────────────────────────────────────────────────
+ *
+ * The closing scene mirrors the Hero: a single-screen composition on desktop,
+ * so the journey ends the way it started. Vertical rhythm is viewport-relative,
+ * which is what stops the CTA pair from ever being pushed against the footer.
+ */
 const Section = styled.section`
   background-color: ${colors.darkGreen};
   position: relative;
   overflow: hidden;
-  scroll-margin-top: 100px;
-  min-height: 951px;
-  padding-top: 60px;
-  padding-bottom: 0;
+  scroll-margin-top: ${spacing.navHeight};
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: clamp(56px, 8vh, 104px);
+  padding-bottom: clamp(56px, 8vh, 104px);
+
+  @media (max-width: 991px) {
+    min-height: auto;
+    justify-content: flex-start;
+    padding-top: 56px;
+    padding-bottom: 64px;
+  }
 
   ${media.mobile} {
-    min-height: auto;
+    scroll-margin-top: ${spacing.navHeightMobile};
     padding-top: 48px;
   }
-
-  ${media.tablet} {
-    min-height: 820px;
-  }
-`;
-
-/* Contains the absolute-positioned Blob S slot. InnerContainer has
-   position: relative but NO z-index — no stacking context created. */
-const InnerContainer = styled(SiteContainer)`
-  position: relative;
-  min-height: inherit;
 `;
 
 /* Section label — above canvas (z-index: 20) */
@@ -51,40 +53,60 @@ const LabelWrap = styled.div`
   z-index: 30;
 `;
 
-/* Headline — above canvas (z-index: 20) */
+/*
+ * Two-column grid.
+ *
+ * Previously the headline was a full-width block with the Blob S absolutely
+ * positioned on top of it at a fixed 461 px — at every width between 992 and
+ * 1400 px the words ran underneath the blob. Giving the blob its own grid
+ * column makes the collision structurally impossible instead of tuned away.
+ */
+const FinalGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  column-gap: clamp(24px, 3.4vw, 56px);
+  align-items: center;
+  margin-top: clamp(32px, 5vh, 72px);
+
+  @media (min-width: 992px) and (max-width: 1199px) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    column-gap: 24px;
+  }
+
+  @media (max-width: 991px) {
+    display: flex;
+    flex-direction: column;
+    margin-top: 28px;
+  }
+`;
+
+const TextColumn = styled.div`
+  position: relative;
+  z-index: 30;
+  min-width: 0;
+`;
+
 const Headline = styled.h2`
   font-family: ${fonts.display};
   font-weight: 400;
   font-style: normal;
   color: ${colors.cream};
-  margin-top: 120px;
-  max-width: 900px;
-  position: relative;
-  z-index: 30;
-
-  ${media.mobile} {
-    margin-top: 62px;
-    max-width: 100%;
-  }
-
-  ${media.tablet} {
-    margin-top: 80px;
-  }
 `;
 
+/* Capped by viewport height as well as width so the closing screen holds
+   its one-screen composition on short laptop displays. */
 const HeadlineLine = styled.span`
   display: block;
-  font-size: 128px;
-  line-height: 134px;
+  font-size: min(clamp(72px, 8.6vw, 124px), 15vh);
+  line-height: 1.05;
 
-  ${media.mobile} {
-    font-size: 58px;
-    line-height: 62px;
+  @media (max-width: 991px) {
+    font-size: clamp(64px, 9vw, 92px);
   }
 
-  ${media.tablet} {
-    font-size: clamp(72px, 8vw, 110px);
-    line-height: 1.05;
+  ${media.mobile} {
+    font-size: clamp(46px, 14.8vw, 58px);
+    line-height: 1.07;
   }
 `;
 
@@ -92,10 +114,10 @@ const HeadlineLine = styled.span`
 const BodyText = styled.p`
   font-family: ${fonts.body};
   font-weight: 400;
-  font-size: 22px;
-  line-height: 34px;
+  font-size: clamp(18px, 1.6vw, 22px);
+  line-height: 1.55;
   color: ${colors.creamBody};
-  margin-top: 120px;
+  margin-top: clamp(24px, 4vh, 64px);
   max-width: 600px;
   position: relative;
   z-index: 30;
@@ -103,116 +125,63 @@ const BodyText = styled.p`
   ${media.mobile} {
     font-size: 17px;
     line-height: 27px;
-    margin-top: 40px;
+    margin-top: 28px;
     max-width: 100%;
-  }
-
-  ${media.tablet} {
-    font-size: 18px;
-    line-height: 28px;
-    margin-top: 60px;
   }
 `;
 
-/* ─── Blob S slot — absolute within InnerContainer ──────────────────────── */
-/* Figma 19:3: right edge at 1440–961 = 479 px from left, width 461 px → right ≈ 19 px */
-/* filter creates a stacking context at z-index: auto — below canvas (z-index: 20) */
-const BlobSFinalWrap = styled.div`
-  position: absolute;
-  right: 19px;
-  top: 194px;
-  width: 461px;
-  height: 503px;
+/* ─── Blob S slot — its own grid column ─────────────────────────────────────── */
+/* filter creates a stacking context at z-index: auto — below canvas (z-index: 20).
+   The Blob S regains full presence here: this is the end of the journey. */
+const BlobColumn = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
   filter: drop-shadow(0px 28px 21px rgba(8, 46, 38, 0.42));
   pointer-events: none;
 
-  ${media.mobile} {
-    position: static;
-    width: 166px;
-    height: 181px;
-    margin-left: auto;
-    margin-top: 40px;
-    filter: drop-shadow(0px 10px 8px rgba(8, 46, 38, 0.42));
+  @media (max-width: 991px) {
+    margin-top: 36px;
+    filter: drop-shadow(0px 14px 11px rgba(8, 46, 38, 0.42));
+  }
+`;
+
+const BlobSlotInner = styled.div`
+  position: relative;
+  height: clamp(280px, 46svh, 540px);
+  max-width: 100%;
+  aspect-ratio: 590 / 780;
+
+  @media (min-width: 992px) and (max-width: 1199px) {
+    height: clamp(260px, 38svh, 400px);
   }
 
-  ${media.tablet} {
-    width: 300px;
-    height: 330px;
-    right: 19px;
-    top: 140px;
+  @media (max-width: 991px) {
+    height: clamp(200px, 30svh, 280px);
   }
 `;
 
 /* ─── CTA block — above canvas ───────────────────────────────────────────── */
+/*
+ * Identical construction to the Hero CTA row: two content-width buttons with a
+ * real gap, wrapping to a left-aligned column on narrow screens. Nothing here
+ * stretches to the container width any more.
+ */
 const CtaBlock = styled.div`
-  margin-top: 135px;
+  margin-top: clamp(36px, 6vh, 88px);
   display: flex;
   align-items: center;
-  gap: 0;
-  padding-bottom: 100px;
+  flex-wrap: wrap;
+  gap: 16px;
   position: relative;
   z-index: 30;
 
-  ${media.mobile} {
+  /* Below 992 px the pair is treated as one centred stack. */
+  @media (max-width: 991px) {
     flex-direction: column;
-    gap: 20px;
-    align-items: stretch;
-    margin-top: 48px;
-    padding-bottom: 60px;
-  }
-
-  ${media.tablet} {
-    margin-top: 60px;
-    flex-wrap: wrap;
-    gap: 20px;
-    padding-bottom: 80px;
-  }
-`;
-
-/* Desktop group — primary blob + overlapping secondary blob */
-const DesktopCtaGroup = styled.div`
-  display: flex;
-  align-items: center;
-
-  ${media.mobile} {
-    display: none;
-  }
-
-  ${media.tablet} {
-    display: none;
-  }
-`;
-
-/* Mobile/narrow full-width CTA wrappers */
-const NarrowBlobWrap = styled.div`
-  display: none;
-  position: relative;
-  width: 100%;
-  height: 56px;
-  align-items: center;
-  justify-content: center;
-
-  a {
-    position: relative;
-    z-index: 1;
-    font-family: ${fonts.body};
-    font-weight: 600;
-    font-size: 15px;
-    line-height: 20px;
-    color: ${colors.darkGreen};
-    text-align: center;
-    text-decoration: none;
-  }
-
-  ${media.mobile} {
-    display: flex;
-  }
-`;
-
-const NarrowSecondaryWrap = styled(NarrowBlobWrap)`
-  a {
-    color: ${colors.cream};
-    white-space: pre-wrap;
+    align-items: center;
+    gap: 14px;
+    margin-top: 40px;
   }
 `;
 
@@ -228,7 +197,7 @@ export function FinalCtaSection() {
     const section = sectionRef.current;
     if (!section) return;
 
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const isMobile = window.matchMedia('(max-width: 991px)').matches;
 
     const label    = section.querySelector('[data-f-label]');
     const headline = section.querySelector('[data-f-headline]');
@@ -256,71 +225,43 @@ export function FinalCtaSection() {
   return (
     /* data-scene-section used by BlobJourneyController */
     <Section id="contact" ref={sectionRef} data-scene-section="final">
-      <InnerContainer>
+      <SiteContainer>
         <LabelWrap data-f-label="">
           <SectionLabel>{`07  /  THE NEXT IDEA`}</SectionLabel>
         </LabelWrap>
 
-        <Headline data-f-headline="">
-          <HeadlineLine>HAVE AN IDEA</HeadlineLine>
-          <HeadlineLine>WORTH BUILDING?</HeadlineLine>
-        </Headline>
+        <FinalGrid>
+          <TextColumn>
+            <Headline data-f-headline="">
+              <HeadlineLine>HAVE AN IDEA</HeadlineLine>
+              <HeadlineLine>WORTH BUILDING?</HeadlineLine>
+            </Headline>
 
-        <BodyText data-f-body="">
-          Bring the idea, problem or opportunity.{' '}
-          <DesktopBr />
-          Let&apos;s find out what product should exist.
-        </BodyText>
+            <BodyText data-f-body="">
+              Bring the idea, problem or opportunity.{' '}
+              <DesktopBr />
+              Let&apos;s find out what product should exist.
+            </BodyText>
+          </TextColumn>
 
-        {/* Blob S slot — canvas renders above via z-index: 20 > filter: auto */}
-        <BlobSFinalWrap data-f-blob="" aria-hidden="true">
-          <BlobSceneSlot slotKey="final" />
-        </BlobSFinalWrap>
+          {/* Blob S slot — canvas renders above via z-index: 20 > filter: auto */}
+          <BlobColumn data-f-blob="" aria-hidden="true">
+            <BlobSlotInner>
+              <BlobSceneSlot slotKey="final" />
+            </BlobSlotInner>
+          </BlobColumn>
+        </FinalGrid>
 
         <CtaBlock data-f-cta="">
-          {/* Desktop (≥1101 px): primary blob + overlapping secondary organic border */}
-          <DesktopCtaGroup>
-            <BlobButton
-              href="mailto:jan@stefanko.tech"
-              blobSrc="/assets/cta-start-conversation.svg"
-              textColor={colors.white}
-              width={230}
-              height={70}
-              fontSize={16}
-            >
-              Start a conversation
-            </BlobButton>
+          <BlobCta href="mailto:jan@stefanko.tech" variant="primary" size="lg">
+            Start a conversation
+          </BlobCta>
 
-            {/* Organic border — same component and geometry as Hero secondary CTA */}
-            <SecondaryExploreCta href="#proof" />
-          </DesktopCtaGroup>
-
-          {/* Mobile: full-width stacked blobs */}
-          <NarrowBlobWrap>
-            <Image
-              src="/assets/cta-primary-mobile.svg"
-              alt=""
-              aria-hidden={true}
-              fill
-              unoptimized
-              style={{ objectFit: 'fill', pointerEvents: 'none' }}
-            />
-            <a href="mailto:jan@stefanko.tech">Start a conversation</a>
-          </NarrowBlobWrap>
-
-          <NarrowSecondaryWrap>
-            <Image
-              src="/assets/cta-secondary-mobile.svg"
-              alt=""
-              aria-hidden={true}
-              fill
-              unoptimized
-              style={{ objectFit: 'fill', pointerEvents: 'none' }}
-            />
-            <a href="#proof">{`Explore selected work  ↗`}</a>
-          </NarrowSecondaryWrap>
+          <BlobCta href="#proof" variant="outlineLight" size="lg">
+            Explore selected work&nbsp;↗
+          </BlobCta>
         </CtaBlock>
-      </InnerContainer>
+      </SiteContainer>
     </Section>
   );
 }

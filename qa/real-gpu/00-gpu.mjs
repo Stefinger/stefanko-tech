@@ -1,0 +1,17 @@
+import { launch, URL, gpuInfo } from './lib.mjs';
+const b = await launch();
+const p = await b.newPage();
+await p.setViewport({ width: 1440, height: 900, deviceScaleFactor: 2 });
+await p.goto(URL, { waitUntil: 'load', timeout: 60000 });
+await new Promise(r => setTimeout(r, 2500));
+const gpu = await gpuInfo(p);
+const isSw = /swiftshader|llvmpipe|software/i.test(gpu.renderer);
+console.log('GPU renderer :', gpu.renderer);
+console.log('GPU vendor   :', gpu.vendor);
+console.log('SOFTWARE?    :', isSw ? 'YES — not a valid real-GPU test' : 'NO — real GPU confirmed');
+const errs = [];
+p.on('pageerror', e => errs.push(String(e)));
+p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+await new Promise(r => setTimeout(r, 800));
+console.log('console errors:', errs.length ? errs : 'none');
+await b.close();

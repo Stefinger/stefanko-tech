@@ -6,13 +6,21 @@ import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap, ScrollTrigger } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
 /* ─── Section shell ────────────────────────────────────────────────────────── */
+/*
+ * min-height guarantees the bounded question stage always fits inside the
+ * section. Previously the desktop clouds were positioned in raw pixels against
+ * a section sized only by its text, so the lowest two clouds spilled into the
+ * Clarity section below.
+ */
 const Section = styled.section`
   background-color: ${colors.cream};
   position: relative;
+  overflow: hidden;
   padding-top: 68px;
   padding-bottom: 80px;
 
@@ -20,6 +28,20 @@ const Section = styled.section`
     padding-top: 48px;
     padding-bottom: 60px;
   }
+
+  @media (min-width: 769px) and (max-width: 991px) {
+    min-height: 920px;
+  }
+
+  @media (min-width: 992px) {
+    min-height: 1010px;
+  }
+`;
+
+/* Text and clouds sit above the fixed Blob S canvas (z-index: 20) */
+const Content = styled.div`
+  position: relative;
+  z-index: 30;
 `;
 
 const LabelWrap = styled.div``;
@@ -29,8 +51,14 @@ const Headline = styled.h2`
   font-weight: 400;
   font-style: normal;
   color: ${colors.darkGreen};
-  margin-top: 142px;
-  max-width: 560px;
+  margin-top: 100px;
+  /*
+   * The measure is capped as a PERCENTAGE as well as in pixels, so the headline
+   * always wraps before it can reach the question-cloud stage (which starts at
+   * 47 %). A flat 560 px measure fitted at 1440 but ran straight into the
+   * clouds at 992–1200 px, where the display size is still large.
+   */
+  max-width: min(560px, 43%);
 
   ${media.mobile} {
     margin-top: 60px;
@@ -44,12 +72,12 @@ const Headline = styled.h2`
 
 const HeadlineLine = styled.span`
   display: block;
-  font-size: 130px;
-  line-height: 136px;
+  font-size: clamp(96px, 9vw, 130px);
+  line-height: 1.045;
 
   ${media.mobile} {
-    font-size: 54px;
-    line-height: 58px;
+    font-size: clamp(44px, 13.8vw, 54px);
+    line-height: 1.075;
   }
 
   @media (min-width: 769px) and (max-width: 1100px) {
@@ -64,8 +92,8 @@ const BodyText = styled.p`
   font-size: 22px;
   line-height: 34px;
   color: ${colors.darkGreen};
-  margin-top: 96px;
-  max-width: 520px;
+  margin-top: 68px;
+  max-width: min(520px, 43%);
 
   ${media.mobile} {
     font-size: 18px;
@@ -78,47 +106,125 @@ const BodyText = styled.p`
     font-size: 18px;
     line-height: 28px;
     margin-top: 60px;
-    max-width: 480px;
   }
 `;
 
-/* ─── Desktop blobs (hidden on mobile) ────────────────────────────────────── */
-const DesktopBlobsArea = styled.div`
+/* ─── Blob S slot ───────────────────────────────────────────────────────────
+ *
+ * Moved out from under the question clouds. Sitting behind them made both
+ * elements harder to read and buried the object in the busiest part of the
+ * section. It now occupies the open lower-left quadrant — below the supporting
+ * copy, left of the cloud stage — so the blob and the questions each own their
+ * own half of the composition.
+ */
+/*
+ * Overlay layers use the SiteContainer geometry so absolutely-positioned
+ * artwork lines up with the text grid at every width, including screens wider
+ * than the 1440 px content cap.
+ *
+ * Two separate overlays are needed because they belong on opposite sides of the
+ * fixed Blob S canvas (z-index: 20): the blob layer paints below it, the cloud
+ * layer paints above it.
+ */
+const OverlayContainer = styled(SiteContainer)`
   position: absolute;
   inset: 0;
   pointer-events: none;
+`;
+
+const CloudOverlayContainer = styled(OverlayContainer)`
+  z-index: 30;
+`;
+
+/* Normal-flow child of the container → correctly inset by its padding, and the
+   positioning reference for everything placed inside it. */
+const OverlayInner = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+`;
+
+const BlobSlotWrap = styled.div`
+  position: absolute;
+  left: 0;
+  bottom: 2%;
+  width: 16%;
+  max-width: 210px;
+  aspect-ratio: 590 / 780;
+  pointer-events: none;
+
+  /*
+   * On mobile the cloud stage spans the full column, so the blob takes the
+   * bottom-right corner instead — below the questions, beside the tagline.
+   * It bleeds sideways past the viewport edge but never below the section:
+   * the fixed canvas ignores section overflow, so a negative bottom offset
+   * would hang the blob over the next section rather than cropping it.
+   */
+  ${media.mobile} {
+    left: auto;
+    right: -22%;
+    bottom: 0;
+    width: 56%;
+    max-width: 300px;
+  }
+`;
+
+/* ─── Desktop question stage ──────────────────────────────────────────────── */
+/*
+ * A bounded stage occupying the right side of the content grid. Every cloud is
+ * placed with a 0–1 fraction of the FREE space (stage size minus cloud size),
+ * so a cloud can never leave the stage, never collide with the section below
+ * and never overflow the right gutter — at any viewport width.
+ */
+const DesktopBlobsArea = styled.div`
+  position: absolute;
+  left: 47%;
+  right: 0;
+  top: 110px;
+  bottom: 96px;
+  /*
+   * The clouds are placed as fractions of the stage's free space, so the stage
+   * height IS the vertical spread. Capping it pulls the six clouds into a
+   * tighter constellation instead of letting them stretch down the full section.
+   */
+  max-height: 620px;
 
   ${media.mobile} {
     display: none;
   }
-`;
 
-interface DesktopBlobWrapProps {
-  $left: string;
-  $top: string;
-}
-
-const DesktopBlobWrap = styled.div<DesktopBlobWrapProps>`
-  position: absolute;
-  left: ${({ $left }) => $left};
-  top: ${({ $top }) => $top};
-  width: 280px;
-  height: 112px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  @media (min-width: 769px) and (max-width: 1100px) {
-    width: 220px;
-    height: 88px;
+  @media (min-width: 1400px) {
+    left: 50%;
   }
 `;
 
+interface DesktopBlobWrapProps {
+  $leftFrac: number;
+  $topFrac: number;
+}
+
+const CLOUD_W = 'clamp(186px, 19.4vw, 280px)';
+const CLOUD_H = 'clamp(74px, 7.76vw, 112px)';
+
+const DesktopBlobWrap = styled.div<DesktopBlobWrapProps>`
+  position: absolute;
+  width: ${CLOUD_W};
+  height: ${CLOUD_H};
+  /* fraction of the free space → always inside the stage */
+  left: calc(${({ $leftFrac }) => $leftFrac} * (100% - ${CLOUD_W}));
+  top: calc(${({ $topFrac }) => $topFrac} * (100% - ${CLOUD_H}));
+`;
+
 /* ─── Mobile blob stage (hidden on desktop) ────────────────────────────────── */
+/* Cloud placement inside this stage is proportional to a ~390 px design.
+   Capping and centring the stage keeps that arrangement intact across the whole
+   mobile range rather than smearing the clouds to the outer edges at 768 px. */
 const MobileQuestionStage = styled.div`
   display: none;
   position: relative;
   width: 100%;
+  max-width: 420px;
+  margin-inline: auto;
   height: 390px;
   margin-top: 48px;
   pointer-events: none;
@@ -137,22 +243,25 @@ const MobileBlobItem = styled.div<MobileBlobItemProps>`
   position: absolute;
   left: ${({ $left }) => $left};
   top: ${({ $top }) => $top};
-  display: flex;
-  align-items: center;
-  justify-content: center;
   /* Blob SVG intrinsic size: 137.2 × 54.88 */
   width: 137px;
   height: 55px;
 `;
 
-const BlobImgWrap = styled.div<{ $rotation: string }>`
+/* Tilt layer — carries the cloud's base rotation AND the gentle rotational
+   drift. Both the blob artwork and its label are children, so they always
+   tilt together and can never separate. GSAP owns this element's transform. */
+const CloudTilt = styled.div`
   position: absolute;
   inset: 0;
-  transform: rotate(${({ $rotation }) => $rotation});
+`;
+
+const BlobImgWrap = styled.div`
+  position: absolute;
+  inset: 0;
 `;
 
 interface QuestionLabelProps {
-  $rotation: string;
   $color?: string;
   $desktopFontSize?: string;
   $mobileFontSize?: string;
@@ -162,37 +271,25 @@ const QuestionLabel = styled.p<QuestionLabelProps>`
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(${({ $rotation }) => $rotation});
+  transform: translate(-50%, -50%);
   font-family: ${fonts.display};
   font-weight: 400;
   font-style: normal;
-  font-size: ${({ $desktopFontSize }) => $desktopFontSize ?? '26px'};
+  font-size: ${({ $desktopFontSize }) => $desktopFontSize ?? 'clamp(17px, 1.8vw, 26px)'};
   line-height: 1.2;
   text-align: center;
   color: ${({ $color }) => $color ?? colors.cream};
   pointer-events: none;
-  /* Desktop: nowrap — 280px blob provides sufficient space */
+  /* Desktop: nowrap — the cloud always provides sufficient space */
   white-space: nowrap;
 
   ${media.mobile} {
     font-size: ${({ $mobileFontSize }) => $mobileFontSize ?? '18px'};
-    /* Mobile: allow wrap with per-item font sizes to fit 137px blob */
+    /* Mobile: allow wrap with per-item font sizes to fit the 137px blob */
     white-space: normal;
     max-width: 108px;
     word-break: keep-all;
     overflow-wrap: normal;
-  }
-`;
-
-/* ─── Bottom rule ──────────────────────────────────────────────────────────── */
-const RuleWrap = styled.div`
-  position: relative;
-  margin-top: 0;
-  height: 1px;
-  overflow: hidden;
-
-  ${media.mobile} {
-    margin-top: 36px;
   }
 `;
 
@@ -203,7 +300,7 @@ const MobileTagline = styled.p`
   font-size: 22px;
   line-height: 28px;
   color: ${colors.darkGreen};
-  margin-top: 28px;
+  margin-top: 36px;
 
   ${media.mobile} {
     display: block;
@@ -211,20 +308,22 @@ const MobileTagline = styled.p`
 `;
 
 /* ─── Config ────────────────────────────────────────────────────────────────── */
+/*
+ * desktopLeftFrac / desktopTopFrac are 0–1 fractions of the stage's free space.
+ * They preserve the approved Figma arrangement (relative spread and rhythm)
+ * while making it fully resolution-independent.
+ */
 const questions = [
   {
     src: '/assets/question-0.svg',
     srcMobile: '/assets/question-0-mobile.svg',
     label: 'WHO?',
     labelColor: colors.cream,
-    rotation: '-9deg',
-    /* desktop: percentage-left + px-top relative to section */
-    desktopLeft: '53.7%',
-    desktopTop: '159px',
-    /* mobile: stage-relative (stage starts ~352px below section top) */
+    rotation: -9,
+    desktopLeftFrac: 0.14,
+    desktopTopFrac: 0,
     mobileLeft: '6.2%',
     mobileTop: '59px',
-    desktopFontSize: '26px',
     mobileFontSize: '20px',
   },
   {
@@ -232,12 +331,11 @@ const questions = [
     srcMobile: '/assets/question-1-mobile.svg',
     label: 'WHY?',
     labelColor: colors.darkGreen,
-    rotation: '6deg',
-    desktopLeft: '73.3%',
-    desktopTop: '231px',
+    rotation: 6,
+    desktopLeftFrac: 0.89,
+    desktopTopFrac: 0.1125,
     mobileLeft: '55.2%',
     mobileTop: '75px',
-    desktopFontSize: '26px',
     mobileFontSize: '20px',
   },
   {
@@ -245,12 +343,11 @@ const questions = [
     srcMobile: '/assets/question-2-mobile.svg',
     label: 'WHAT?',
     labelColor: colors.cream,
-    rotation: '12deg',
-    desktopLeft: '49.4%',
-    desktopTop: '402px',
+    rotation: 12,
+    desktopLeftFrac: 0,
+    desktopTopFrac: 0.38,
     mobileLeft: '3.6%',
     mobileTop: '205px',
-    desktopFontSize: '26px',
     mobileFontSize: '20px',
   },
   {
@@ -258,12 +355,11 @@ const questions = [
     srcMobile: '/assets/question-3-mobile.svg',
     label: 'FOR WHOM?',
     labelColor: colors.cream,
-    rotation: '-17deg',
-    desktopLeft: '68.7%',
-    desktopTop: '502px',
+    rotation: -17,
+    desktopLeftFrac: 0.72,
+    desktopTopFrac: 0.536,
     mobileLeft: '56.7%',
     mobileTop: '163px',
-    desktopFontSize: '26px',
     mobileFontSize: '16px',
   },
   {
@@ -271,12 +367,11 @@ const questions = [
     srcMobile: '/assets/question-4-mobile.svg',
     label: 'WHY NOW?',
     labelColor: colors.darkGreen,
-    rotation: '-5deg',
-    desktopLeft: '51.0%',
-    desktopTop: '691px',
+    rotation: -5,
+    desktopLeftFrac: 0.04,
+    desktopTopFrac: 0.831,
     mobileLeft: '6.2%',
     mobileTop: '314px',
-    desktopFontSize: '26px',
     mobileFontSize: '17px',
   },
   {
@@ -284,12 +379,11 @@ const questions = [
     srcMobile: '/assets/question-5-mobile.svg',
     label: 'WHAT MATTERS?',
     labelColor: colors.cream,
-    rotation: '9deg',
-    desktopLeft: '69.6%',
-    desktopTop: '799px',
+    rotation: 9,
+    desktopLeftFrac: 0.75,
+    desktopTopFrac: 1,
     mobileLeft: '54.5%',
     mobileTop: '326px',
-    desktopFontSize: '26px',
     mobileFontSize: '14px',
   },
 ];
@@ -298,9 +392,23 @@ const questions = [
 const blobEntranceY  = [22, -18, 20, -16, 18, -20] as const;
 const blobScatterX   = [-38,  48, -44,  52, -36,  44] as const;
 const blobScatterY   = [-52,  42, -42,  54, -58,  50] as const;
-const blobDriftAmp   = [ 5,   -5,   5,  -5,   5,  -5] as const;
-const blobDriftDur   = [2.1, 2.5, 1.9, 2.3, 2.6, 2.0] as const;
+/*
+ * Drift.
+ *
+ * Each cloud now wanders on BOTH axes, and its horizontal and vertical periods
+ * are deliberately incommensurate (≈2.6–3.6 s against ≈3.5–4.8 s). Because the
+ * two oscillations never re-sync, the resulting path is an open Lissajous curve
+ * rather than a repeating bob — which is what makes the clouds read as drifting
+ * fish instead of ticking metronomes. Amplitudes are up roughly 2×, and the
+ * slow rotational sway stays under 3 degrees so it never tips into chaos.
+ */
+const blobDriftAmp   = [ 11,  -9,  12, -10,   9, -12] as const;
+const blobDriftDur   = [2.9, 3.4, 2.6, 3.1, 3.6, 2.8] as const;
+const blobDriftX     = [ -7,   8,  -6,   9,  -8,   7] as const;
+const blobDriftXDur  = [4.3, 3.8, 4.6, 4.1, 3.5, 4.8] as const;
 const blobDriftDelay = [0,   0.3, 0.6, 0.9, 0.45, 0.15] as const;
+const blobTiltAmp    = [2.6, -2.2, 1.9, -2.8, 2.3, -2.0] as const;
+const blobTiltDur    = [4.4, 5.1, 4.7, 5.4, 4.1, 4.9] as const;
 
 export function UncertaintySection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -324,10 +432,59 @@ export function UncertaintySection() {
       section.querySelectorAll(isMobile ? '[data-u-blob-mobile]' : '[data-u-blob-desktop]')
     ) as HTMLElement[];
 
-    const driftAmp   = isMobile ? 3 : 5;
+    /* the tilt layer inside each visible cloud */
+    const tilts = blobs
+      .map(el => el.querySelector<HTMLElement>('[data-u-tilt]'))
+      .filter((el): el is HTMLElement => el !== null);
+
+    /* Mobile keeps the same character at roughly half the travel — the clouds
+       sit much closer together there, so full amplitude would read as collision. */
+    const driftMul   = isMobile ? 0.5 : 1;
+    const tiltMul    = isMobile ? 0.55 : 1;
     const scatterMul = isMobile ? 0.45 : 1;
 
     let driftTweens: gsap.core.Tween[] = [];
+    let tiltTweens: gsap.core.Tween[] = [];
+
+    const startIdle = () => {
+      driftTweens = blobs.flatMap((el, i) => [
+        gsap.to(el, {
+          y: (blobDriftAmp[i] ?? 10) * driftMul,
+          duration: blobDriftDur[i] ?? 3,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          delay: blobDriftDelay[i] ?? 0,
+        }),
+        gsap.to(el, {
+          x: (blobDriftX[i] ?? 7) * driftMul,
+          duration: blobDriftXDur[i] ?? 4.2,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          delay: (blobDriftDelay[i] ?? 0) * 0.6,
+        }),
+      ]);
+      tiltTweens = tilts.map((el, i) => {
+        const base = questions[i]?.rotation ?? 0;
+        return gsap.to(el, {
+          rotation: base + (blobTiltAmp[i] ?? 1.5) * tiltMul,
+          duration: blobTiltDur[i] ?? 3.6,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          delay: (blobDriftDelay[i] ?? 0) * 1.6,
+          overwrite: 'auto',
+        });
+      });
+    };
+
+    const stopIdle = () => {
+      driftTweens.forEach(t => t.kill());
+      tiltTweens.forEach(t => t.kill());
+      driftTweens = [];
+      tiltTweens = [];
+    };
 
     /* label + headline + body entrance */
     gsap.timeline({
@@ -349,22 +506,7 @@ export function UncertaintySection() {
       start: 'top 72%',
       once: true,
       onEnter: () => {
-        const tl = gsap.timeline({
-          onComplete: () => {
-            driftTweens = blobs.map((el, i) =>
-              gsap.to(el, {
-                y: (blobDriftAmp[i] ?? 5) * (driftAmp / 5),
-                duration: blobDriftDur[i] ?? 2.2,
-                repeat: -1,
-                yoyo: true,
-                ease: 'sine.inOut',
-                delay: blobDriftDelay[i] ?? 0,
-              })
-            );
-          },
-        });
-
-        tl.from(blobs, {
+        gsap.timeline({ onComplete: startIdle }).from(blobs, {
           opacity: 0,
           y: (i: number) => blobEntranceY[i] ?? 20,
           /* calmer on mobile: smaller scale change */
@@ -381,8 +523,7 @@ export function UncertaintySection() {
       trigger: section,
       start: 'bottom 68%',
       onLeave: () => {
-        driftTweens.forEach(t => t.kill());
-        driftTweens = [];
+        stopIdle();
         gsap.to(blobs, {
           opacity: 0,
           x: (i: number) => (blobScatterX[i] ?? -40) * scatterMul,
@@ -404,114 +545,103 @@ export function UncertaintySection() {
           duration: 0.35,
           ease: 'power2.out',
           overwrite: 'auto',
-          onComplete: () => {
-            driftTweens = blobs.map((el, i) =>
-              gsap.to(el, {
-                y: (blobDriftAmp[i] ?? 5) * (driftAmp / 5),
-                duration: blobDriftDur[i] ?? 2.2,
-                repeat: -1,
-                yoyo: true,
-                ease: 'sine.inOut',
-                delay: blobDriftDelay[i] ?? 0,
-                overwrite: 'auto',
-              })
-            );
-          },
+          onComplete: startIdle,
         });
       },
     });
+
+    return stopIdle;
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section ref={sectionRef}>
-      {/* Desktop blobs — position: absolute relative to section, hidden on mobile */}
-      <DesktopBlobsArea aria-hidden="true">
-        {questions.map((q, i) => (
-          <DesktopBlobWrap
-            key={i}
-            data-u-blob-desktop=""
-            $left={q.desktopLeft}
-            $top={q.desktopTop}
-          >
-            <BlobImgWrap $rotation={q.rotation} style={{ transform: `rotate(${q.rotation})` }}>
-              <Image
-                src={q.src}
-                alt=""
-                fill
-                unoptimized
-                style={{ objectFit: 'contain' }}
-              />
-            </BlobImgWrap>
-            <QuestionLabel
-              $rotation={q.rotation}
-              $color={q.labelColor}
-              $desktopFontSize={q.desktopFontSize}
-              $mobileFontSize={q.mobileFontSize}
-            >
-              {q.label}
-            </QuestionLabel>
-          </DesktopBlobWrap>
-        ))}
-      </DesktopBlobsArea>
+    /* data-scene-section is read by BlobJourneyController to resolve the scene */
+    <Section ref={sectionRef} data-scene-section="uncertainty">
+      {/* Blob S — behind the clouds, low presence (below the canvas layer) */}
+      <OverlayContainer aria-hidden="true">
+        <OverlayInner>
+          <BlobSlotWrap>
+            <BlobSceneSlot slotKey="uncertainty" hideFallbackOnMobile />
+          </BlobSlotWrap>
+        </OverlayInner>
+      </OverlayContainer>
 
-      <SiteContainer>
-        <LabelWrap data-u-label="">
-          <SectionLabel color={colors.darkGreen}>{`02  /  UNCERTAINTY`}</SectionLabel>
-        </LabelWrap>
-
-        <Headline data-u-headline="">
-          <HeadlineLine>AN IDEA IS ONLY</HeadlineLine>
-          <HeadlineLine>THE START.</HeadlineLine>
-        </Headline>
-
-        <BodyText data-u-body="">
-          The first job is not to build. It is to understand
-          {' '}what should be built.
-        </BodyText>
-
-        {/* Mobile blobs — bounded stage below body text, hidden on desktop */}
-        <MobileQuestionStage aria-hidden="true">
-          {questions.map((q, i) => (
-            <MobileBlobItem
-              key={i}
-              data-u-blob-mobile=""
-              $left={q.mobileLeft}
-              $top={q.mobileTop}
-            >
-              <BlobImgWrap $rotation={q.rotation}>
-                <Image
-                  src={q.srcMobile}
-                  alt=""
-                  fill
-                  unoptimized
-                  style={{ objectFit: 'contain' }}
-                />
-              </BlobImgWrap>
-              <QuestionLabel
-                $rotation={q.rotation}
-                $color={q.labelColor}
-                $desktopFontSize={q.desktopFontSize}
-                $mobileFontSize={q.mobileFontSize}
+      {/* Desktop clouds — bounded stage, fractional placement (above the canvas) */}
+      <CloudOverlayContainer aria-hidden="true">
+        <OverlayInner>
+          <DesktopBlobsArea>
+            {questions.map((q, i) => (
+              <DesktopBlobWrap
+                key={i}
+                data-u-blob-desktop=""
+                $leftFrac={q.desktopLeftFrac}
+                $topFrac={q.desktopTopFrac}
               >
-                {q.label}
-              </QuestionLabel>
-            </MobileBlobItem>
-          ))}
-        </MobileQuestionStage>
+                <CloudTilt data-u-tilt="" style={{ transform: `rotate(${q.rotation}deg)` }}>
+                  <BlobImgWrap>
+                    <Image
+                      src={q.src}
+                      alt=""
+                      fill
+                      unoptimized
+                      style={{ objectFit: 'contain' }}
+                    />
+                  </BlobImgWrap>
+                  <QuestionLabel $color={q.labelColor} $mobileFontSize={q.mobileFontSize}>
+                    {q.label}
+                  </QuestionLabel>
+                </CloudTilt>
+              </DesktopBlobWrap>
+            ))}
+          </DesktopBlobsArea>
+        </OverlayInner>
+      </CloudOverlayContainer>
 
-        <RuleWrap>
-          <Image
-            src="/assets/section-rule.svg"
-            alt=""
-            aria-hidden={true}
-            fill
-            unoptimized
-            style={{ objectFit: 'fill' }}
-          />
-        </RuleWrap>
+      <Content>
+        <SiteContainer>
+          <LabelWrap data-u-label="">
+            <SectionLabel color={colors.darkGreen}>{`02  /  UNCERTAINTY`}</SectionLabel>
+          </LabelWrap>
 
-        <MobileTagline>QUESTIONS BEFORE CODE.</MobileTagline>
-      </SiteContainer>
+          <Headline data-u-headline="">
+            <HeadlineLine>AN IDEA IS ONLY</HeadlineLine>
+            <HeadlineLine>THE START.</HeadlineLine>
+          </Headline>
+
+          <BodyText data-u-body="">
+            The first job is not to build. It is to understand
+            {' '}what should be built.
+          </BodyText>
+
+          {/* Mobile clouds — bounded stage below body text, hidden on desktop */}
+          <MobileQuestionStage aria-hidden="true">
+            {questions.map((q, i) => (
+              <MobileBlobItem
+                key={i}
+                data-u-blob-mobile=""
+                $left={q.mobileLeft}
+                $top={q.mobileTop}
+              >
+                <CloudTilt data-u-tilt="" style={{ transform: `rotate(${q.rotation}deg)` }}>
+                  <BlobImgWrap>
+                    <Image
+                      src={q.srcMobile}
+                      alt=""
+                      fill
+                      unoptimized
+                      style={{ objectFit: 'contain' }}
+                    />
+                  </BlobImgWrap>
+                  <QuestionLabel $color={q.labelColor} $mobileFontSize={q.mobileFontSize}>
+                    {q.label}
+                  </QuestionLabel>
+                </CloudTilt>
+              </MobileBlobItem>
+            ))}
+          </MobileQuestionStage>
+
+          <MobileTagline>QUESTIONS BEFORE CODE.</MobileTagline>
+        </SiteContainer>
+      </Content>
     </Section>
   );
 }

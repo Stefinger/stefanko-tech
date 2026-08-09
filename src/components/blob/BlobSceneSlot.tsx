@@ -18,20 +18,46 @@ const SlotRoot = styled.div`
   pointer-events: none;
 `;
 
-const FallbackSVG = styled.svg`
+/* $opacity mirrors the scene's WebGL opacity so the static fallback reads with
+   the same presence as the 3D blob (reduced motion, pre-first-frame, WebGL error). */
+const FallbackSVG = styled.svg<{ $opacity: number; $hideOnMobile: boolean }>`
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
+  opacity: ${({ $opacity }) => $opacity};
+
+  /*
+   * Mirrors SCENE_CONFIGS[...].skipOnMobile for the static path — reduced
+   * motion, pre-first-frame and WebGL-failure all render this SVG instead of
+   * the mesh, and it must sit those sections out too.
+   *
+   * Only the artwork is hidden, never the slot root: the root is the
+   * measurement anchor the controller reads, and collapsing it would strand
+   * the blob's target position.
+   */
+  ${({ $hideOnMobile }) =>
+    $hideOnMobile
+      ? `@media (max-width: 768px) { display: none; }`
+      : ''}
 `;
 
 interface BlobSceneSlotProps {
   slotKey: SlotKey;
+  /** Static-fallback opacity — keep in sync with the scene config opacity. */
+  fallbackOpacity?: number;
+  /** Keep in sync with SCENE_CONFIGS[...].skipOnMobile for this slot's scene. */
+  hideFallbackOnMobile?: boolean;
   className?: string;
 }
 
-export function BlobSceneSlot({ slotKey, className }: BlobSceneSlotProps) {
+export function BlobSceneSlot({
+  slotKey,
+  fallbackOpacity = 1,
+  hideFallbackOnMobile = false,
+  className,
+}: BlobSceneSlotProps) {
   const storeRef = useBlobJourneyStore();
   const rootRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -63,6 +89,8 @@ export function BlobSceneSlot({ slotKey, className }: BlobSceneSlotProps) {
        */}
       <FallbackSVG
         ref={svgRef}
+        $opacity={fallbackOpacity}
+        $hideOnMobile={hideFallbackOnMobile}
         viewBox="0 0 590 780"
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="xMidYMid meet"

@@ -1,0 +1,24 @@
+import puppeteer from 'puppeteer';
+import fs from 'node:fs';
+const OUT=process.argv[2]; fs.mkdirSync(OUT,{recursive:true});
+const b=await puppeteer.launch({headless:'new',args:['--no-sandbox','--enable-unsafe-swiftshader','--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
+const p=await b.newPage();
+await p.setViewport({width:1440,height:180,deviceScaleFactor:2});
+await p.goto('http://localhost:3000/',{waitUntil:'load',timeout:60000});
+await new Promise(r=>setTimeout(r,1400));
+await p.screenshot({path:`${OUT}/nav-rest.png`,clip:{x:760,y:0,width:680,height:110}});
+const link=await p.evaluateHandle(()=>[...document.querySelectorAll('header nav a')].find(e=>e.textContent.includes('Build in Public')));
+await link.asElement().hover();
+await new Promise(r=>setTimeout(r,900));
+await p.screenshot({path:`${OUT}/nav-hover-link.png`,clip:{x:760,y:0,width:680,height:110}});
+const cta=await p.evaluateHandle(()=>[...document.querySelectorAll('header a')].find(e=>e.textContent.includes('Start a project')));
+await cta.asElement().hover();
+await new Promise(r=>setTimeout(r,1400));
+await p.screenshot({path:`${OUT}/nav-hover-cta.png`,clip:{x:760,y:0,width:680,height:110}});
+// pink wave over cream
+await p.setViewport({width:800,height:230,deviceScaleFactor:2});
+await new Promise(r=>setTimeout(r,400));
+await p.evaluate(()=>window.scrollTo(0,1600));
+await new Promise(r=>setTimeout(r,900));
+await p.screenshot({path:`${OUT}/nav-wave.png`});
+await b.close(); console.log('done');

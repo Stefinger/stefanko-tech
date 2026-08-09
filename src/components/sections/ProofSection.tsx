@@ -1,12 +1,12 @@
 'use client';
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
-import Image from 'next/image';
 import styled from 'styled-components';
-import { colors, fonts, media } from '@/styles/tokens';
+import { colors, fonts, media, spacing } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { BlobButton } from '@/components/ui/BlobButton';
+import { BlobCta } from '@/components/ui/BlobCta';
+import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -14,21 +14,89 @@ import { useReducedMotion } from '@/lib/useReducedMotion';
    PLACEHOLDER: All proof cards contain placeholder content only.
    Phase 6 will replace them with real product screenshots and assets. */
 
+/*
+ * Proof card interaction.
+ *
+ * One object, one movement. The card lifts and its accent ring fades in —
+ * nothing else. The earlier version also deepened a drop shadow and drifted the
+ * card's own contents apart, which made a single tile read as a stack of
+ * separating layers rather than as one physical thing being picked up.
+ *
+ * `--card-ring` is set per card; this block stays colour-agnostic.
+ */
+const cardHover = `
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0);
+  transition:
+    transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 620ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      transform: translateY(-8px);
+      box-shadow: inset 0 0 0 1px var(--card-ring);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover { transform: none; }
+  }
+`;
+
 /* ─── Section shell — full-width background, vertical spacing only ──────── */
 const Section = styled.section`
   background-color: ${colors.cream};
   position: relative;
-  scroll-margin-top: 100px;
+  overflow: hidden;
+  scroll-margin-top: ${spacing.navHeight};
   padding-top: 66px;
-  padding-bottom: 66px;
+  padding-bottom: 78px;
 
   ${media.mobile} {
+    scroll-margin-top: ${spacing.navHeightMobile};
     padding-top: 48px;
-    padding-bottom: 44px;
+    padding-bottom: 56px;
   }
 
   ${media.tablet} {
-    padding-bottom: 60px;
+    padding-bottom: 68px;
+  }
+`;
+
+/* Everything readable sits above the fixed Blob S canvas (z-index: 20) */
+const Content = styled.div`
+  position: relative;
+  z-index: 30;
+`;
+
+/* ─── Blob S — small marginal presence beside the headline ─────────────────── */
+const BlobOverlay = styled(SiteContainer)`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+`;
+
+const BlobOverlayInner = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+`;
+
+const BlobSlotWrap = styled.div`
+  position: absolute;
+  right: 0;
+  top: 6%;
+  width: 17%;
+  max-width: 210px;
+  aspect-ratio: 590 / 780;
+
+  ${media.mobile} {
+    right: -8%;
+    top: 2%;
+    width: 40%;
+    max-width: none;
   }
 `;
 
@@ -50,12 +118,12 @@ const Headline = styled.h2`
 
 const HeadlineLine = styled.span`
   display: block;
-  font-size: 118px;
-  line-height: 124px;
+  font-size: clamp(88px, 8.2vw, 118px);
+  line-height: 1.05;
 
   ${media.mobile} {
-    font-size: 58px;
-    line-height: 62px;
+    font-size: clamp(46px, 14.8vw, 58px);
+    line-height: 1.07;
   }
 
   ${media.tablet} {
@@ -86,7 +154,7 @@ const CardsGrid = styled.div`
   grid-template-rows: 200px 200px;
   column-gap: 30px;
   row-gap: 30px;
-  margin-top: 90px;
+  margin-top: clamp(56px, 6.2vw, 90px);
 
   ${media.mobile} {
     display: flex;
@@ -103,6 +171,8 @@ const CardsGrid = styled.div`
 `;
 
 const FeaturedCard = styled.div`
+  ${cardHover}
+  --card-ring: rgba(136, 255, 92, 0.45);
   background-color: ${colors.darkGreen};
   border-radius: 34px;
   overflow: hidden;
@@ -170,6 +240,8 @@ const CardPlaceholderLabel = styled.p`
 `;
 
 const HardwareCard = styled.div`
+  ${cardHover}
+  --card-ring: rgba(8, 46, 38, 0.4);
   background-color: ${colors.pink};
   border-radius: 34px;
   overflow: hidden;
@@ -214,10 +286,12 @@ const HardwareSubLabel = styled.p`
 `;
 
 const BuildPublicCard = styled.div`
+  ${cardHover}
+  --card-ring: rgba(136, 255, 92, 0.45);
   background-color: ${colors.darkGreenAlt};
   border-radius: 34px;
   overflow: hidden;
-  scroll-margin-top: 100px;
+  scroll-margin-top: ${spacing.navHeight};
   padding: 34px 28px;
   display: flex;
   flex-direction: column;
@@ -258,45 +332,22 @@ const BuildPublicSubLabel = styled.p`
   }
 `;
 
-const DesktopCtaWrap = styled.div`
-  margin-top: 20px;
+/*
+ * One CTA for every breakpoint.
+ *
+ * The gap below the card grid is generous on purpose: the featured Selected
+ * Work card is tall and visually heavy, and a tight button underneath read as
+ * attached to it rather than as a separate action.
+ */
+const CtaWrap = styled.div`
+  margin-top: 64px;
 
-  ${media.mobile} {
-    display: none;
-  }
-`;
-
-const MobileCtaWrap = styled.div`
-  display: none;
-  margin-top: 30px;
-
-  ${media.mobile} {
-    display: block;
-  }
-`;
-
-const MobileCtaBlobWrap = styled.div`
-  display: none;
-  position: relative;
-  width: 100%;
-  height: 56px;
-  align-items: center;
-  justify-content: center;
-
-  a {
-    position: relative;
-    z-index: 1;
-    font-family: ${fonts.body};
-    font-weight: 600;
-    font-size: 15px;
-    line-height: 20px;
-    color: ${colors.darkGreen};
-    text-align: center;
-    text-decoration: none;
+  ${media.tablet} {
+    margin-top: 56px;
   }
 
   ${media.mobile} {
-    display: flex;
+    margin-top: 52px;
   }
 `;
 
@@ -336,6 +387,13 @@ export function ProofSection() {
         duration: isMobile ? 0.5 : 0.6,
         stagger: 0.14,
         ease: 'power2.out',
+        /*
+         * The entrance leaves an inline `transform` on each card, and an inline
+         * style always beats a stylesheet rule — which silently killed the CSS
+         * hover lift. Clearing the property once the entrance finishes hands
+         * `transform` back to CSS so the hover can own it.
+         */
+        clearProps: 'transform',
         scrollTrigger: {
           trigger: cards[0],
           start: 'top 80%',
@@ -358,82 +416,73 @@ export function ProofSection() {
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section id="proof" ref={sectionRef}>
-      <SiteContainer>
-        <div data-p-label="">
-          <SectionLabel color={colors.darkGreen}>{`06  /  REAL PROOF`}</SectionLabel>
-        </div>
+    /* data-scene-section is read by BlobJourneyController to resolve the scene */
+    <Section id="proof" ref={sectionRef} data-scene-section="proof">
+      {/* Blob S — small marginal presence, below the canvas layer */}
+      <BlobOverlay aria-hidden="true">
+        <BlobOverlayInner>
+          <BlobSlotWrap>
+            <BlobSceneSlot slotKey="proof" />
+          </BlobSlotWrap>
+        </BlobOverlayInner>
+      </BlobOverlay>
 
-        <Headline data-p-headline="">
-          <HeadlineLine>PROOF LIVES</HeadlineLine>
-          <HeadlineLine>IN REALITY.</HeadlineLine>
-        </Headline>
+      <Content>
+        <SiteContainer>
+          <div data-p-label="">
+            <SectionLabel color={colors.darkGreen}>{`06  /  REAL PROOF`}</SectionLabel>
+          </div>
 
-        <BodyText data-p-body="">Real products. Real progress. Real lessons.</BodyText>
+          <Headline data-p-headline="">
+            <HeadlineLine>PROOF LIVES</HeadlineLine>
+            <HeadlineLine>IN REALITY.</HeadlineLine>
+          </Headline>
 
-        <CardsGrid>
-          {/* PLACEHOLDER — replace with real product screenshot before launch */}
-          <FeaturedCard data-p-card="">
-            <CardWorkLabel>{`SELECTED WORK  /  01`}</CardWorkLabel>
-            <div>
-              <CardHeadline>
-                A REAL
+          <BodyText data-p-body="">Real products. Real progress. Real lessons.</BodyText>
+
+          <CardsGrid>
+            {/* PLACEHOLDER — replace with real product screenshot before launch */}
+            <FeaturedCard data-p-card="">
+              <CardWorkLabel>{`SELECTED WORK  /  01`}</CardWorkLabel>
+              <div>
+                <CardHeadline>
+                  A REAL
+                  <br />
+                  DIGITAL PRODUCT
+                </CardHeadline>
+                {/* PLACEHOLDER: replace with real screenshot */}
+                <CardPlaceholderLabel>REPLACE WITH A REAL SCREENSHOT</CardPlaceholderLabel>
+              </div>
+            </FeaturedCard>
+
+            {/* PLACEHOLDER — replace with real hardware+software prototype asset */}
+            <HardwareCard data-p-card="">
+              <HardwareHeadline>
+                HARDWARE
                 <br />
-                DIGITAL PRODUCT
-              </CardHeadline>
-              {/* PLACEHOLDER: replace with real screenshot */}
-              <CardPlaceholderLabel>REPLACE WITH A REAL SCREENSHOT</CardPlaceholderLabel>
-            </div>
-          </FeaturedCard>
+                + SOFTWARE
+              </HardwareHeadline>
+              <HardwareSubLabel>REAL PROTOTYPE</HardwareSubLabel>
+            </HardwareCard>
 
-          {/* PLACEHOLDER — replace with real hardware+software prototype asset */}
-          <HardwareCard data-p-card="">
-            <HardwareHeadline>
-              HARDWARE
-              <br />
-              + SOFTWARE
-            </HardwareHeadline>
-            <HardwareSubLabel>REAL PROTOTYPE</HardwareSubLabel>
-          </HardwareCard>
+            {/* PLACEHOLDER — replace with real build-in-public process image */}
+            <BuildPublicCard id="build-in-public" data-p-card="">
+              <BuildPublicHeadline>
+                BUILD IN
+                <br />
+                PUBLIC
+              </BuildPublicHeadline>
+              <BuildPublicSubLabel>REAL PROCESS IMAGE</BuildPublicSubLabel>
+            </BuildPublicCard>
+          </CardsGrid>
 
-          {/* PLACEHOLDER — replace with real build-in-public process image */}
-          <BuildPublicCard id="build-in-public" data-p-card="">
-            <BuildPublicHeadline>
-              BUILD IN
-              <br />
-              PUBLIC
-            </BuildPublicHeadline>
-            <BuildPublicSubLabel>REAL PROCESS IMAGE</BuildPublicSubLabel>
-          </BuildPublicCard>
-        </CardsGrid>
-
-        <DesktopCtaWrap data-p-cta="">
-          <BlobButton
-            href="#proof"
-            blobSrc="/assets/cta-explore-work-dark.svg"
-            textColor={colors.darkGreen}
-            width={236}
-            height={56}
-            fontSize={14}
-          >
-            Explore selected work
-          </BlobButton>
-        </DesktopCtaWrap>
-
-        <MobileCtaWrap data-p-cta="">
-          <MobileCtaBlobWrap>
-            <Image
-              src="/assets/cta-explore-work-dark-mobile.svg"
-              alt=""
-              aria-hidden={true}
-              fill
-              unoptimized
-              style={{ objectFit: 'fill', pointerEvents: 'none' }}
-            />
-            <a href="#proof">Explore selected work</a>
-          </MobileCtaBlobWrap>
-        </MobileCtaWrap>
-      </SiteContainer>
+          <CtaWrap data-p-cta="">
+            <BlobCta href="#proof" variant="outlineDark" size="md">
+              Explore selected work
+            </BlobCta>
+          </CtaWrap>
+        </SiteContainer>
+      </Content>
     </Section>
   );
 }

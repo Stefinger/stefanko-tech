@@ -2,23 +2,87 @@
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import styled from 'styled-components';
-import { colors, fonts } from '@/styles/tokens';
+import { colors, fonts, motion } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
 /* ─── Section shell ────────────────────────────────────────────────────────── */
+/*
+ * Background is the primary brand dark green (#082E26). The lifted
+ * darkGreenAlt tone read as an off-brand tint next to the Hero and Final CTA;
+ * separation between the sections comes from the layered cards, not from
+ * shifting the green.
+ */
 const Section = styled.section`
-  background-color: ${colors.darkGreenAlt};
+  background-color: ${colors.darkGreen};
   position: relative;
   overflow: hidden;
-  padding-top: 72px;
-  padding-bottom: 80px;
+  padding-top: 96px;
+  padding-bottom: 120px;
+
+  @media (max-width: 991px) {
+    padding-top: 72px;
+  }
 
   @media (max-width: 767px) {
     padding-top: 48px;
-    padding-bottom: 60px;
+    padding-bottom: 88px;
+  }
+`;
+
+/* Everything readable sits above the fixed Blob S canvas (z-index: 20) */
+const Content = styled.div`
+  position: relative;
+  z-index: 30;
+`;
+
+/* ─── Blob S ────────────────────────────────────────────────────────────────
+ *
+ * Desktop: far right, deliberately bleeding past the content container so it
+ * reads as a spatial object sitting beyond the layout rather than an element
+ * inside it. Its left edge is placed clear of the card deck's right edge, so it
+ * never crowds the stack, and it is nowhere near the headline column.
+ *
+ * With the deck reduced there is real room beside it, so the blob is pulled
+ * back toward the container and enlarged: it now reads as the second element in
+ * a two-part composition rather than a sliver entering frame.
+ *
+ * IMPORTANT: the slot must stay fully inside the section VERTICALLY. The blob
+ * is drawn by the fixed WebGL canvas, which is not clipped by the section's
+ * overflow, so a negative top/bottom offset does not crop it — it hangs the
+ * blob over the neighbouring section. Horizontal bleed is fine.
+ */
+const BlobOverlay = styled(SiteContainer)`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+`;
+
+const BlobOverlayInner = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+`;
+
+const BlobSlotWrap = styled.div`
+  position: absolute;
+  left: auto;
+  right: -6%;
+  top: 11%;
+  width: 23%;
+  max-width: 310px;
+  aspect-ratio: 590 / 780;
+
+  /* Mobile: top-right, in the space beside the section label and clear of the
+     headline, which never reaches that far across. */
+  @media (max-width: 991px) {
+    right: -7%;
+    top: 0;
+    width: 34%;
+    max-width: 190px;
   }
 `;
 
@@ -37,7 +101,9 @@ const ContentGrid = styled.div`
     grid-template-columns: 560px 1fr;
   }
 
-  @media (min-width: 992px) and (max-width: 1199px) {
+  /* 992–1399 px: an even split gives the display headline enough measure to
+     stay on two lines per block at the sizes it reaches in this range. */
+  @media (min-width: 992px) and (max-width: 1399px) {
     grid-template-columns: 1fr 1fr;
     column-gap: 24px;
   }
@@ -48,11 +114,15 @@ const ContentGrid = styled.div`
   }
 `;
 
+/* z-index keeps the headline above the layered cards — the back slab
+   deliberately bleeds left into the grid gap and would otherwise paint over
+   the last word of "TO BE REAL." at wide widths. */
 const TextColumn = styled.div`
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 1;
+  min-width: 0;
 `;
 
 const Headline = styled.h2`
@@ -79,18 +149,20 @@ const HeadlinePink = styled.h2`
   }
 `;
 
+/* Capped at 110 px: the longest line ("TO BE REAL.") measures ~4.94 em in
+   Anton, which is exactly what the 560 px text column holds at xxl. */
 const HeadlineLine = styled.span`
   display: block;
   font-family: ${fonts.display};
   font-weight: 400;
   font-style: normal;
-  font-size: clamp(64px, 8.6vw, 124px);
+  font-size: clamp(64px, 8.2vw, 110px);
   line-height: 1.03;
   color: ${colors.cream};
 
   @media (max-width: 767px) {
-    font-size: 58px;
-    line-height: 62px;
+    font-size: clamp(46px, 14.8vw, 58px);
+    line-height: 1.07;
   }
 `;
 
@@ -115,37 +187,33 @@ const BodyText = styled.p`
   }
 `;
 
-/* ─── Assembly stage — bounded, all slabs % relative to it ─────────────────── */
+/* ─── Assembly stage ───────────────────────────────────────────────────────── */
 /*
- * All slab left/top values are percentages of AssemblyStage.
- * Slab width is 73% of stage (matches 560/763 desktop and 263/342 mobile ratios).
- * Slab aspect-ratio 560:820 preserved at all widths.
+ * Stage height is derived from its own width via aspect-ratio rather than a
+ * per-breakpoint pixel value, so the deck keeps identical spacing at every
+ * desktop width.
  *
- * On desktop the back slab intentionally bleeds -16% left into the grid gap —
- * this matches the Figma design. Section overflow:hidden clips any excess.
+ * A slab is 44 % of the stage width — down from 62 %, a real reduction in the
+ * composition rather than a repositioning of the same stack. Its 560:820 ratio
+ * makes it 0.644 × the stage width tall; with the front slab starting at 22 %
+ * the stage needs to be 0.83 × its width to contain the deck exactly.
  *
- * On mobile (<768px) the back slab uses left:0 to prevent viewport overflow.
+ * The smaller deck is what buys the section its breathing room: the stage is
+ * now shorter than the headline column beside it, which opens real space on the
+ * right for the Blob S to sit as an equal part of the composition.
  */
 const AssemblyStage = styled.div`
   position: relative;
   width: 100%;
-  height: 1020px;
+  aspect-ratio: 1 / 0.83;
   margin-top: 0;
   /* overflow visible so rotated cards don't self-clip */
   overflow: visible;
 
-  @media (min-width: 992px) and (max-width: 1199px) {
-    height: 800px;
-  }
-
   @media (max-width: 991px) {
-    height: 600px;
-    margin-top: 48px;
-  }
-
-  @media (max-width: 767px) {
-    height: 480px;
-    margin-top: 48px;
+    aspect-ratio: auto;
+    height: 470px;
+    margin-top: 56px;
   }
 `;
 
@@ -154,168 +222,164 @@ interface SlabProps {
   $rotation: string;
   $leftPct: string;
   $topPct: string;
-  $mobileLeft: string;
+  $mobileOffset: string;
   $mobileTop: string;
 }
 
+/*
+ * The outer Slab owns POSITION and the GSAP-driven transform (assembly scrub).
+ * Its child SlabSurface owns the visual card and the hover transform, so CSS
+ * hover and GSAP never write to the same `transform` property and fight.
+ */
 const Slab = styled.div<SlabProps>`
   position: absolute;
-  background-color: ${({ $bg }) => $bg};
-  border-radius: 40px;
-  box-shadow: 0px 24px 38px 0px rgba(8, 46, 38, 0.3);
   transform: rotate(${({ $rotation }) => $rotation});
-  /* 73% of stage width, aspect 560:820 */
-  width: 73%;
+  /* 44% of stage width, aspect 560:820 */
+  width: 44%;
   aspect-ratio: 560 / 820;
   left: ${({ $leftPct }) => $leftPct};
   top: ${({ $topPct }) => $topPct};
 
   /*
    * At ≤991 px the ContentGrid stacks to a single column, so the stage is
-   * full-container-width.  Three changes:
-   * 1. Fix width to 263 px (Figma mobile slab size) — this bounds the
-   *    rotation AABB so a 10-deg card stays within the SiteContainer gutter.
-   * 2. Switch to mobile left/top (no negative left offset).
-   * 3. Reduce corner radius and shadow to mobile spec.
+   * full-container width. The deck is CENTRED on the stage — previously it was
+   * pinned to the left gutter, which left the whole section visually
+   * lopsided on phones and tablets.
+   *
+   * Fixed 240 × 351 px bounds the rotation AABB (297 px at 10°) so a rotated
+   * card always clears the SiteContainer gutter on a 390 px viewport.
    */
   @media (max-width: 991px) {
-    width: 263px;
-    aspect-ratio: 263 / 385;
-    border-radius: 19px;
-    box-shadow: 0px 11px 18px 0px rgba(8, 46, 38, 0.3);
-    left: ${({ $mobileLeft }) => $mobileLeft};
+    width: 240px;
+    aspect-ratio: 240 / 351;
+    left: calc(50% - 120px + ${({ $mobileOffset }) => $mobileOffset});
     top: ${({ $mobileTop }) => $mobileTop};
   }
 `;
 
 /*
- * Labels are siblings of slabs (rendered after all slabs → higher paint order).
- * Positioned stage-relative in the VISIBLE STRIP of their card:
- *   PROBLEM   — top 80 px of back slab exposed above middle slab
- *   EXPERIENCE — top 41 px of middle slab exposed above front slab
- *   PRODUCT   — front slab fully visible
+ * The card surface, and the hover response.
+ *
+ * Hovering an exposed strip lifts that card out of the deck and deepens its
+ * shadow — a depth response rather than a highlight. Because only the exposed
+ * strip of a back card is hittable, the interaction naturally reads as
+ * "peeling" whichever layer you reach for.
  */
-interface SlabLabelProps {
-  $rotation: string;
-  $desktopLeft: string;
-  $desktopTop: string;
-  $lgTop?: string;
-  $mobileLeft: string;
-  $mobileTop: string;
-  $color: string;
-}
-
-const SlabLabel = styled.p<SlabLabelProps>`
+const SlabSurface = styled.div<{ $bg: string }>`
   position: absolute;
+  inset: 0;
+  background-color: ${({ $bg }) => $bg};
+  border-radius: 28px;
+  box-shadow: 0px 16px 26px 0px rgba(8, 46, 38, 0.32);
+  transform-origin: 50% 50%;
+  transition:
+    transform 420ms ${motion.hoverEase},
+    box-shadow 420ms ${motion.hoverEase};
+  will-change: transform;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      transform: translateY(-11px) scale(1.015);
+      box-shadow: 0px 28px 42px 0px rgba(8, 46, 38, 0.4);
+    }
+  }
+
+  @media (max-width: 991px) {
+    border-radius: 19px;
+    box-shadow: 0px 11px 18px 0px rgba(8, 46, 38, 0.3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover { transform: none; }
+  }
+`;
+
+/*
+ * Labels are now CHILDREN of their own slab rather than stage-positioned
+ * siblings with hand-tuned pixel offsets per breakpoint.
+ *
+ * That means each label inherits its card's rotation and position for free, and
+ * sits at a fixed proportional inset inside its card, so it stays inside that
+ * card's exposed strip at every width without a single magic number. The next
+ * slab still paints over the covered part of the card below, which is exactly
+ * the intended layering.
+ */
+const SlabLabel = styled.p<{ $color: string }>`
+  position: absolute;
+  left: 11%;
+  top: 3.2%;
   font-family: ${fonts.body};
   font-weight: 600;
-  font-size: 13px;
-  line-height: 18px;
-  letter-spacing: 2.08px;
+  font-size: clamp(9px, 0.72vw, 11px);
+  line-height: 1.4;
+  letter-spacing: 0.14em;
   color: ${({ $color }) => $color};
-  /* rotate with the slab's angle */
-  transform: rotate(${({ $rotation }) => $rotation});
-  left: ${({ $desktopLeft }) => $desktopLeft};
-  top: ${({ $desktopTop }) => $desktopTop};
   pointer-events: none;
   white-space: nowrap;
 
-  /* 992–1199 px: stage height is 800 px, so slab strip centres differ from the
-     default 1020 px reference.  Override only the labels that would fall
-     outside their exposed strip at 800 px. */
-  @media (min-width: 992px) and (max-width: 1199px) {
-    ${({ $lgTop }) => $lgTop ? `top: ${$lgTop};` : ''}
-  }
-
-  /* Mirror the Slab breakpoint so label follows its slab */
   @media (max-width: 991px) {
-    left: ${({ $mobileLeft }) => $mobileLeft};
-    top: ${({ $mobileTop }) => $mobileTop};
+    left: 11%;
+    top: 4%;
     font-size: 8px;
-    letter-spacing: 1.2px;
+    letter-spacing: 0.15em;
     line-height: 12px;
   }
 `;
 
 /* ─── Slab config ───────────────────────────────────────────────────────────── */
 /*
- * desktopLeft / topPct: % of AssemblyStage (1020 px tall reference at ≥1200 px)
- * mobileLeft: px relative to AssemblyStage (no negative offsets)
- * mobileTop: px relative to AssemblyStage
+ * leftPct / topPct: % of AssemblyStage.
  *
- * All topPct values shifted down by 3.6 % vs previous version to introduce a
- * deliberate top safe area that keeps the back slab and its PROBLEM label clear
- * of the fixed navbar at all tested widths (390, 768, 992, 1024, 1200, 1440 px).
+ * The three tops are evenly spaced 8.5 % apart, so each card exposes an equal
+ * strip of the one behind it — the deck reads as one deliberate progression
+ * (PROBLEM → EXPERIENCE → PRODUCT) instead of two tight steps and one loose one.
  *
- * Label desktop top values — centre of each slab's exposed strip:
- *   PROBLEM   → new strip: 9%–16.8% of 1020 px = 91.8–171.4 px → label 110 px
- *   EXPERIENCE → strip: 16.8%–20.9% of 1020 px = 171.4–213.2 px → label 186 px
- *               (at 992–1199 px the stage is 800 px → strip 134.4–167.2 px → lgTop 150 px)
- *   PRODUCT   → front fully visible from 20.9% → label 244 px
+ * The lefts step 16 % each and start at 2 %. With the narrower cards this keeps
+ * the same staircase read while spreading the deck across its column instead of
+ * bunching it. The back card does not bleed toward the headline.
  *
- * Mobile (stage 480 px, ≤767 px — values unchanged; mobileTop uses px):
- *   PROBLEM   → strip 26–63 px → label at 38 px
- *   EXPERIENCE → strip 63–83 px → label at 68 px
- *   PRODUCT   → label at 95 px
+ * mobileOffset: px offset from the centred position (see Slab, ≤991 px).
  */
 const slabs = [
   {
-    bg: colors.darkGreen,
+    /*
+     * The back card must differ from the section behind it. The section is now
+     * the primary dark green, so the card takes the lifted darkGreenAlt tone —
+     * the same two-green relationship as before, with the roles swapped so the
+     * SECTION carries the brand green and the card carries the variant.
+     */
+    bg: colors.darkGreenAlt,
     rotation: '10deg',
     finalRotation: 10,
-    /* desktop: back card bleeds left into gap (Figma intent) */
-    leftPct: '-16%',
-    topPct: '9%',
-    /*
-     * mobile (≤991 px, slab fixed at 263×385 px):
-     * 10 px left compensates the 10-deg AABB offset (~31.5 px).
-     * viewport_left ≈ padding(24) + 10 - 31.5 = 2.5 px ✓
-     */
-    mobileLeft: '10px',
-    mobileTop: '26px',
+    leftPct: '2%',
+    topPct: '5%',
+    mobileOffset: '-16px',
+    mobileTop: '18px',
     labelText: 'PROBLEM',
     labelColor: colors.cream,
-    labelRotation: '10deg',
-    labelDesktopLeft: '70px',
-    labelDesktopTop: '110px',
-    labelLgTop: undefined as string | undefined,
-    labelMobileLeft: '26px',
-    labelMobileTop: '38px',
   },
   {
     bg: colors.cream,
     rotation: '3deg',
     finalRotation: 3,
-    leftPct: '0.7%',
-    topPct: '16.8%',
-    mobileLeft: '9px',
-    mobileTop: '63px',
+    leftPct: '18%',
+    topPct: '13.5%',
+    mobileOffset: '0px',
+    mobileTop: '58px',
     labelText: 'EXPERIENCE',
     labelColor: colors.darkGreen,
-    labelRotation: '3deg',
-    labelDesktopLeft: '81px',
-    labelDesktopTop: '186px',
-    /* At 992–1199 px the stage is 800 px: middle strip = 134.4–167.2 px */
-    labelLgTop: '150px' as string | undefined,
-    labelMobileLeft: '28px',
-    labelMobileTop: '68px',
   },
   {
     bg: colors.pink,
     rotation: '-4deg',
     finalRotation: -4,
-    leftPct: '10%',
-    topPct: '20.9%',
-    mobileLeft: '22px',
-    mobileTop: '83px',
+    leftPct: '34%',
+    topPct: '22%',
+    mobileOffset: '14px',
+    mobileTop: '98px',
     labelText: 'PRODUCT',
     labelColor: colors.cream,
-    labelRotation: '-4deg',
-    labelDesktopLeft: '110px',
-    labelDesktopTop: '244px',
-    labelLgTop: undefined as string | undefined,
-    labelMobileLeft: '38px',
-    labelMobileTop: '95px',
   },
 ];
 
@@ -403,65 +467,62 @@ export function BuildSection() {
   }, { scope: sectionRef, dependencies: [reducedMotion] });
 
   return (
-    <Section ref={sectionRef}>
-      <SiteContainer>
-        <div data-b-label="">
-          <SectionLabel>{`05  /  BUILD`}</SectionLabel>
-        </div>
+    /* data-scene-section is read by BlobJourneyController to resolve the scene */
+    <Section ref={sectionRef} data-scene-section="build">
+      {/* Blob S — behind the cards, below the canvas layer */}
+      <BlobOverlay aria-hidden="true">
+        <BlobOverlayInner>
+          <BlobSlotWrap>
+            <BlobSceneSlot slotKey="build" />
+          </BlobSlotWrap>
+        </BlobOverlayInner>
+      </BlobOverlay>
 
-        <ContentGrid>
-          <TextColumn>
-            <Headline data-b-headline="">
-              <HeadlineLine>DESIGNED</HeadlineLine>
-              <HeadlineLine>TO BE USED.</HeadlineLine>
-            </Headline>
-            <HeadlinePink data-b-headline-pink="">
-              <HeadlineLinePink>BUILT</HeadlineLinePink>
-              <HeadlineLinePink>TO BE REAL.</HeadlineLinePink>
-            </HeadlinePink>
-            <BodyText data-b-body="">
-              The idea becomes an experience people can understand, use and test.
-            </BodyText>
-          </TextColumn>
+      <Content>
+        <SiteContainer>
+          <div data-b-label="">
+            <SectionLabel>{`05  /  BUILD`}</SectionLabel>
+          </div>
 
-          <AssemblyStage ref={assemblyRef} aria-hidden="true">
-            {/* Slabs rendered first (lower paint order) */}
-            {slabs.map((slab, i) => (
-              <Slab
-                key={i}
-                data-b-slab=""
-                $bg={slab.bg}
-                $rotation={slab.rotation}
-                $leftPct={slab.leftPct}
-                $topPct={slab.topPct}
-                $mobileLeft={slab.mobileLeft}
-                $mobileTop={slab.mobileTop}
-              />
-            ))}
-            {/*
-              Labels rendered after all slabs — higher paint order ensures
-              labels are always visible above slabs regardless of stacking
-              context created by slab transforms.
-              Each label is positioned in the VISIBLE EXPOSED STRIP of its card.
-            */}
-            {slabs.map((slab, i) => (
-              <SlabLabel
-                key={`label-${i}`}
-                data-b-slab-label=""
-                $rotation={slab.labelRotation}
-                $desktopLeft={slab.labelDesktopLeft}
-                $desktopTop={slab.labelDesktopTop}
-                $lgTop={slab.labelLgTop}
-                $mobileLeft={slab.labelMobileLeft}
-                $mobileTop={slab.labelMobileTop}
-                $color={slab.labelColor}
-              >
-                {slab.labelText}
-              </SlabLabel>
-            ))}
-          </AssemblyStage>
-        </ContentGrid>
-      </SiteContainer>
+          <ContentGrid>
+            <TextColumn>
+              <Headline data-b-headline="">
+                <HeadlineLine>DESIGNED</HeadlineLine>
+                <HeadlineLine>TO BE USED.</HeadlineLine>
+              </Headline>
+              <HeadlinePink data-b-headline-pink="">
+                <HeadlineLinePink>BUILT</HeadlineLinePink>
+                <HeadlineLinePink>TO BE REAL.</HeadlineLinePink>
+              </HeadlinePink>
+              <BodyText data-b-body="">
+                The idea becomes an experience people can understand, use and test.
+              </BodyText>
+            </TextColumn>
+
+            <AssemblyStage ref={assemblyRef} aria-hidden="true">
+              {slabs.map((slab, i) => (
+                <Slab
+                  key={i}
+                  data-b-slab=""
+                  $bg={slab.bg}
+                  $rotation={slab.rotation}
+                  $leftPct={slab.leftPct}
+                  $topPct={slab.topPct}
+                  $mobileOffset={slab.mobileOffset}
+                  $mobileTop={slab.mobileTop}
+                >
+                  <SlabSurface $bg={slab.bg}>
+                    {/* Label rides its own card — rotation and position for free */}
+                    <SlabLabel data-b-slab-label="" $color={slab.labelColor}>
+                      {slab.labelText}
+                    </SlabLabel>
+                  </SlabSurface>
+                </Slab>
+              ))}
+            </AssemblyStage>
+          </ContentGrid>
+        </SiteContainer>
+      </Content>
     </Section>
   );
 }

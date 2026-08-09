@@ -2,18 +2,28 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import styled, { css } from 'styled-components';
-import { colors, fonts, media } from '@/styles/tokens';
-import { BlobButton } from '@/components/ui/BlobButton';
+import { colors, fonts, media, motion } from '@/styles/tokens';
+import { BlobCta } from '@/components/ui/BlobCta';
+import { SHAPE_NAV } from '@/components/ui/blobShapes';
 
 /* ─── Wave SVG notes ────────────────────────────────────────────────────────
-   The wave is always rendered. Over the dark-green hero the fill matches the
-   background (invisible). Over cream sections the organic edge becomes visible.
+   The wave is always rendered and is always part of the navbar — it is never
+   animated as a separate element and there is no divider line anywhere in the
+   header. Over the dark-green hero the fill matches the background, so the
+   navbar merges into the hero. Once cream content scrolls underneath, the
+   complete organic edge becomes visible.
 
-   Compact wave: original Figma path data is kept exactly; only the rendered
-   height is reduced so the wave sits shallower below the content row.
+   A second, pink wave sits *behind* the dark-green one. It is not a copy of the
+   dark wave nudged down — it is its own path, derived by pushing every point of
+   the dark wave down in proportion to how far that point already dips, so the
+   pink band is thin under the crests and thick under the troughs. That variable
+   thickness is what gives it the poured quality. It renders at full opacity —
+   a translucent pink read as washed out against the cream sections — and stays
+   fully transparent at the top of the page so the navbar still merges into the
+   dark-green hero.
 
-   Desktop: content row 72 px + wave 28 px = 100 px total visual height
-   Mobile:  content row 64 px + wave 22 px = 86 px total visual height        */
+   Desktop: content row 80 px + wave 28 px = 108 px total visual height
+   Mobile:  content row 68 px + wave 22 px =  90 px total visual height       */
 
 const NavHeader = styled.header`
   position: fixed;
@@ -23,13 +33,14 @@ const NavHeader = styled.header`
   z-index: 100;
   overflow: visible;
   pointer-events: none;
+  /* No border, no box-shadow, no divider — the wave is the only bottom edge. */
 `;
 
-/* Original viewBox kept; height reduced from 149 px → 100 px (shallower wave). */
+/* Original viewBox kept; height reduced from 149 px → 108 px (shallower wave). */
 const DesktopWave = styled.svg`
   display: none;
   width: 100%;
-  height: 100px;
+  height: 108px;
   overflow: visible;
 
   ${media.aboveMobile} {
@@ -37,15 +48,41 @@ const DesktopWave = styled.svg`
   }
 `;
 
-/* Original viewBox kept; height reduced from 112 px → 86 px. */
+/* Original viewBox kept; height reduced from 112 px → 90 px. */
 const MobileWave = styled.svg`
   display: block;
   width: 100%;
-  height: 86px;
+  height: 90px;
+  overflow: visible;
 
   ${media.aboveMobile} {
     display: none;
   }
+`;
+
+/* Shared positioning so both wave layers stack pixel-exactly. */
+const WaveLayer = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  line-height: 0;
+  overflow: visible;
+`;
+
+const PinkWaveLayer = styled(WaveLayer)<{ $visible: boolean }>`
+  z-index: 0;
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  transition: opacity 520ms ${motion.hoverEase};
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+const MainWaveLayer = styled(WaveLayer)`
+  z-index: 1;
 `;
 
 const NavWaveBg = styled.div`
@@ -58,22 +95,31 @@ const NavWaveBg = styled.div`
   line-height: 0;
 `;
 
+/*
+ * Content row.
+ *
+ * The wave's solid band runs from y=0 to roughly 80 % of the wave height, so
+ * geometric centring inside a plain flex row makes the whole group sit high in
+ * the visible bar. `padding-top` biases the row downward by ~6 px, which gives
+ * the "Start a project" blob real breathing room above its top edge instead of
+ * having it crowd the top of the navbar.
+ */
 const NavContentRow = styled.div`
   position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
-  height: 72px;
-  padding: 0 64px;
+  height: 80px;
+  padding: 6px 64px 0;
   pointer-events: all;
 
   ${media.mobile} {
-    height: 64px;
-    padding: 0 24px;
+    height: 68px;
+    padding: 4px 24px 0;
   }
 
   ${media.tablet} {
-    padding: 0 40px;
+    padding: 6px 40px 0;
   }
 `;
 
@@ -84,6 +130,12 @@ const LogoGroup = styled.a`
   flex-shrink: 0;
   cursor: pointer;
   text-decoration: none;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover [data-nav-logo-blob] {
+      transform: scale(1.08) rotate(-4deg);
+    }
+  }
 `;
 
 const NavBlobSWrap = styled.div`
@@ -91,10 +143,16 @@ const NavBlobSWrap = styled.div`
   width: 34px;
   height: 34px;
   flex-shrink: 0;
+  transform-origin: 50% 50%;
+  transition: transform ${motion.hoverDuration} ${motion.hoverEase};
 
   ${media.mobile} {
     width: 26px;
     height: 26px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `;
 
@@ -111,24 +169,58 @@ const Wordmark = styled.span`
   }
 `;
 
+/* Each link now carries its own padding so the hover cloud has room, so the
+   flex gap only has to top up the visual spacing rather than provide all of it. */
 const NavLinks = styled.nav`
   display: flex;
   align-items: center;
-  gap: 34px;
+  gap: 8px;
   margin-left: auto;
-  margin-right: 32px;
+  margin-right: 24px;
 
   ${media.mobile} {
     display: none;
   }
 
   ${media.tablet} {
-    gap: 20px;
-    margin-right: 20px;
+    gap: 0;
+    margin-right: 10px;
+  }
+`;
+
+/*
+ * Nav link hover.
+ *
+ * A soft pink cloud settles in behind the hovered link. The blob is the same
+ * organic silhouette family as the CTAs, scaled up from 0.82 and faded in over
+ * 520 ms with a gentle curve — long enough that moving along the row reads as
+ * one shape drifting between links rather than a row of hard on/off switches.
+ *
+ * Replaces the underline wipe, which was quick and linear and read as a toggle.
+ */
+const NavLinkCloud = styled.span`
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.82);
+  transform-origin: 50% 52%;
+  transition:
+    opacity 520ms cubic-bezier(0.3, 0.1, 0.2, 1),
+    transform 520ms cubic-bezier(0.3, 0.1, 0.2, 1);
+  will-change: opacity, transform;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `;
 
 const NavLink = styled.a`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: ${fonts.body};
   font-weight: 500;
   font-size: 14px;
@@ -136,8 +228,44 @@ const NavLink = styled.a`
   color: ${colors.creamBody};
   white-space: nowrap;
   text-decoration: none;
+  padding: 10px 18px;
+  transition: color 520ms cubic-bezier(0.3, 0.1, 0.2, 1);
+
+  span.nav-link-text {
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: ${colors.darkGreen};
+    }
+    &:hover ${NavLinkCloud} {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    color: ${colors.darkGreen};
+  }
+  &:focus-visible ${NavLinkCloud} {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `;
 
+/*
+ * Previously the CTA was hidden on tablet while the hamburger only appeared
+ * below 769 px, which left 769–1100 px with no "Start a project" action at all.
+ * The CTA now stays present at every width above the mobile menu breakpoint and
+ * simply scales down between 769 and 1100 px.
+ */
 const NavCtaWrap = styled.div`
   flex-shrink: 0;
 
@@ -146,13 +274,20 @@ const NavCtaWrap = styled.div`
   }
 
   ${media.tablet} {
-    display: none;
+    a {
+      height: 46px;
+      min-width: 130px;
+      padding: 0 22px;
+    }
+    a .blob-cta-label {
+      font-size: 13px;
+    }
   }
 `;
 
 /* ─── Hamburger ─────────────────────────────────────────────────────────── */
 
-const Hamburger = styled.button`
+const Hamburger = styled.button<{ $open: boolean }>`
   display: none;
   align-items: center;
   justify-content: center;
@@ -169,6 +304,54 @@ const Hamburger = styled.button`
   ${media.mobile} {
     display: flex;
   }
+
+  /* Organic blob border responds instead of a rectangular focus/hover box */
+  [data-hamburger-border] {
+    transform-origin: 50% 50%;
+    transition:
+      transform ${motion.hoverDuration} ${motion.hoverEase},
+      opacity ${motion.hoverDuration} ${motion.hoverEase};
+    opacity: ${({ $open }) => ($open ? 0 : 1)};
+  }
+
+  /*
+   * Open state: the outline gives way to a filled pink blob and the bars turn
+   * dark green, so the control reads as active rather than as the same outline
+   * with a rotated glyph. The fill uses the same organic silhouette, released
+   * with a slight overshoot — the same language as the CTA flood.
+   */
+  [data-hamburger-fill] {
+    position: absolute;
+    inset: 0;
+    display: block;
+    transform-origin: 50% 50%;
+    transform: scale(${({ $open }) => ($open ? 1 : 0.4)});
+    opacity: ${({ $open }) => ($open ? 1 : 0)};
+    transition:
+      transform 320ms cubic-bezier(0.34, 1.4, 0.5, 1),
+      opacity 200ms ${motion.hoverEase};
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-hamburger-fill] { transition: none; }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover [data-hamburger-border] {
+      transform: scale(1.06) rotate(-3deg);
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+  &:focus-visible [data-hamburger-border] {
+    transform: scale(1.06) rotate(-3deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-hamburger-border] { transition: none; }
+  }
 `;
 
 const BurgerLines = styled.div`
@@ -182,10 +365,12 @@ const BurgerLines = styled.div`
 const BurgerLine = styled.span<{ $open: boolean; $bottom?: boolean }>`
   width: 20px;
   height: 2px;
-  background-color: ${colors.cream};
+  background-color: ${({ $open }) => ($open ? colors.darkGreen : colors.cream)};
   border-radius: 1px;
   display: block;
-  transition: transform 250ms ease-out;
+  transition:
+    transform 250ms ease-out,
+    background-color 200ms ease-out;
 
   ${({ $open, $bottom }) =>
     $open &&
@@ -212,7 +397,7 @@ const MobileMenuOverlay = styled.div<{ $open: boolean }>`
     height: 100dvh;
     background-color: ${colors.darkGreen};
     z-index: 99;
-    padding-top: 86px; /* clear compact mobile navbar */
+    padding-top: 90px; /* clear compact mobile navbar */
     padding-left: 24px;
     padding-right: 24px;
     padding-bottom: 40px;
@@ -256,12 +441,56 @@ const menuNavBase = `
   width: 100%;
 `;
 
+/*
+ * Expanded-menu link hover — the pink travels across the word, left to right.
+ *
+ * The label is rendered twice in the same box: cream underneath, pink directly
+ * on top. The pink copy is clipped to zero width from its right edge and the
+ * clip is released left-to-right, so the colour passes THROUGH the letterforms
+ * themselves. Nothing moves, nothing sits behind the text, and the type never
+ * shifts position — which is what separates this from an underline, a
+ * background pill or a translated word.
+ *
+ * The pink copy is aria-hidden so the label is announced once.
+ */
+const MenuNavFill = styled.span`
+  position: absolute;
+  inset: 0;
+  color: ${colors.pink};
+  white-space: nowrap;
+  pointer-events: none;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 620ms cubic-bezier(0.33, 0.1, 0.2, 1);
+  will-change: clip-path;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+/* Wraps the two copies so the overlay's containing block is exactly the text. */
+const MenuNavLabel = styled.span`
+  position: relative;
+  display: inline-block;
+`;
+
 const MenuNavLink = styled.a`
   ${menuNavBase}
   text-decoration: none;
 
-  &:active {
-    color: ${colors.pink};
+  @media (hover: hover) and (pointer: fine) {
+    &:hover ${MenuNavFill} {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  &:active ${MenuNavFill},
+  &:focus-visible ${MenuNavFill} {
+    clip-path: inset(0 0 0 0);
+  }
+
+  &:focus-visible {
+    outline: none;
   }
 `;
 
@@ -271,31 +500,48 @@ const MenuCtaWrap = styled.div`
   padding-bottom: 16px;
 `;
 
-const MobileMenuPrimaryBlobWrap = styled.div`
-  position: relative;
-  width: 100%;
-  height: 56px;
+/* Content-width, left-aligned — matches the Hero CTA proportions instead of
+   stretching a pill across the full width of the open menu. */
+const MenuCtaRow = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-
-  a {
-    position: relative;
-    z-index: 1;
-    font-family: ${fonts.body};
-    font-weight: 600;
-    font-size: 15px;
-    line-height: 20px;
-    color: ${colors.darkGreen};
-    text-align: center;
-    text-decoration: none;
-  }
+  flex-direction: column;
+  align-items: flex-start;
 `;
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
+/* Nav items, and the organic silhouette used for the hover cloud behind them. */
+const NAV_ITEMS = [
+  { id: 'proof', label: 'Work' },
+  { id: 'build-in-public', label: 'Build in Public' },
+  { id: 'about', label: 'About' },
+  { id: 'contact', label: 'Contact' },
+] as const;
+
+const NAV_CLOUD = SHAPE_NAV;
+
+/* Organic hamburger silhouette — same geometry as hamburger-blob-border.svg,
+   inlined so the open state can render it as a fill rather than an outline. */
+const HAMBURGER_BLOB_D =
+  'M13.4035 43.0382C6.7659 42.4708 2.2658 36.6838 4.06584 30.6698C1.36577 25.904 4.06584 20.0035 9.12845 18.4149C8.00343 11.947 13.6286 6.61383 19.7037 7.86202C23.1913 2.52886 31.629 2.7558 34.779 8.31591C40.4042 6.38689 46.0293 10.9258 45.3543 16.8263C50.6419 19.3226 51.6544 26.9252 47.1543 30.5563C48.1668 37.1377 42.3167 42.6978 36.0166 41.6765C31.629 47.1232 23.0788 47.4636 18.3537 42.4708C16.7786 43.0382 15.0911 43.1517 13.4035 43.0382Z';
+
+/* Wave path data — Figma node 104:3, desktop and mobile variants. */
+const DESKTOP_WAVE_D =
+  'M0 0H1440V120C1360 106 1300 144 1215 132C1135 120 1088 92 1005 110C922 128 865 162 780 144C690 124 645 92 560 108C470 126 430 160 340 146C250 132 190 96 108 112C62 121 30 134 0 128V0Z';
+const MOBILE_WAVE_D =
+  'M0 0H390V82C365 68 348 105 321 108C291 111 278 73 250 78C220 84 209 113 182 111C153 109 142 72 113 76C84 80 71 112 43 110C24 109 14 93 0 98V0Z';
+
+/* Pink under-waves — see PinkWaveLayer for how these were derived. */
+const DESKTOP_PINK_WAVE_D =
+  'M0 0H1440V135.2C1360 117.6 1300 165.4 1215 150.3C1135 135.2 1088 100 1005 122.6C922 145.3 865 188 780 165.4C690 140.2 645 100 560 120.1C470 142.7 430 185.5 340 167.9C250 150.3 190 105 108 125.1C62 136.5 30 152.8 0 145.3V0Z';
+const MOBILE_PINK_WAVE_D =
+  'M0 0H390V92C365 74 348 121.7 321 125.6C291 129.4 278 80.4 250 86.9C220 94.6 209 132 182 129.4C153 126.8 142 79.2 113 84.3C84 89.5 71 130.7 43 128.1C24 126.8 14 106.2 0 112.7V0Z';
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  // Drives the pink under-wave. False at the very top of the page so the navbar
+  // merges cleanly into the dark-green hero, as approved in Direction C.
+  const [isScrolled, setIsScrolled] = useState(false);
   // Stores the element ID to scroll to after the menu close + scroll-lock
   // cleanup sequence completes. Null means the menu was closed without navigation.
   const pendingTargetRef = useRef<string | null>(null);
@@ -317,6 +563,24 @@ export function Navbar() {
     },
     [],
   );
+
+  // Scroll state — identical logic on desktop and mobile, rAF-throttled so it
+  // never competes with the Blob S journey scroll handler.
+  useEffect(() => {
+    let ticking = false;
+    const evaluate = () => {
+      ticking = false;
+      setIsScrolled(window.scrollY > 24);
+    };
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(evaluate);
+    };
+    evaluate();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const openMenu = useCallback(() => setIsOpen(true), []);
 
@@ -420,37 +684,54 @@ export function Navbar() {
     <>
       <NavHeader>
         <NavWaveBg aria-hidden="true">
-          {/* Desktop wave — Figma node 104:3, original path, height reduced from 149→100 px */}
-          <DesktopWave
-            viewBox="0 0 1440 149.297"
-            preserveAspectRatio="none"
-            fill="none"
-            overflow="visible"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M0 0H1440V120C1360 106 1300 144 1215 132C1135 120 1088 92 1005 110C922 128 865 162 780 144C690 124 645 92 560 108C470 126 430 160 340 146C250 132 190 96 108 112C62 121 30 134 0 128V0Z"
-              fill="#082E26"
-            />
-          </DesktopWave>
+          {/* Pink under-wave — behind the dark green, fades in once scrolled */}
+          <PinkWaveLayer $visible={isScrolled}>
+            <DesktopWave
+              viewBox="0 0 1440 149.297"
+              preserveAspectRatio="none"
+              fill="none"
+              overflow="visible"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d={DESKTOP_PINK_WAVE_D} fill={colors.pink} />
+            </DesktopWave>
+            <MobileWave
+              viewBox="0 0 390 112"
+              preserveAspectRatio="none"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d={MOBILE_PINK_WAVE_D} fill={colors.pink} />
+            </MobileWave>
+          </PinkWaveLayer>
 
-          {/* Mobile wave — original Figma path, height reduced from 112→86 px */}
-          <MobileWave
-            viewBox="0 0 390 112"
-            preserveAspectRatio="none"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M0 0H390V82C365 68 348 105 321 108C291 111 278 73 250 78C220 84 209 113 182 111C153 109 142 72 113 76C84 80 71 112 43 110C24 109 14 93 0 98V0Z"
-              fill="#082E26"
-            />
-          </MobileWave>
+          <MainWaveLayer>
+            {/* Desktop wave — Figma node 104:3, original path, height reduced from 149→108 px */}
+            <DesktopWave
+              viewBox="0 0 1440 149.297"
+              preserveAspectRatio="none"
+              fill="none"
+              overflow="visible"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d={DESKTOP_WAVE_D} fill={colors.darkGreen} />
+            </DesktopWave>
+
+            {/* Mobile wave — original Figma path, height reduced from 112→90 px */}
+            <MobileWave
+              viewBox="0 0 390 112"
+              preserveAspectRatio="none"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d={MOBILE_WAVE_D} fill={colors.darkGreen} />
+            </MobileWave>
+          </MainWaveLayer>
         </NavWaveBg>
 
         <NavContentRow>
           <LogoGroup href="/">
-            <NavBlobSWrap>
+            <NavBlobSWrap data-nav-logo-blob="">
               <Image
                 src="/assets/blob-s-nav.svg"
                 alt="Stefanko.tech"
@@ -463,47 +744,76 @@ export function Navbar() {
           </LogoGroup>
 
           <NavLinks>
-            <NavLink href="#proof" onClick={handleNavClick('proof')}>Work</NavLink>
-            <NavLink href="#build-in-public" onClick={handleNavClick('build-in-public')}>Build in Public</NavLink>
-            <NavLink href="#about" onClick={handleNavClick('about')}>About</NavLink>
-            <NavLink href="#contact" onClick={handleNavClick('contact')}>Contact</NavLink>
+            {NAV_ITEMS.map(item => (
+              <NavLink key={item.id} href={`#${item.id}`} onClick={handleNavClick(item.id)}>
+                <NavLinkCloud aria-hidden="true">
+                  <svg
+                    viewBox={NAV_CLOUD.viewBox}
+                    preserveAspectRatio="none"
+                    fill="none"
+                    style={{ display: 'block', width: '100%', height: '100%' }}
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d={NAV_CLOUD.d} fill={colors.pink} />
+                  </svg>
+                </NavLinkCloud>
+                <span className="nav-link-text">{item.label}</span>
+              </NavLink>
+            ))}
           </NavLinks>
 
           <NavCtaWrap>
-            <BlobButton
+            <BlobCta
               href="#contact"
-              blobSrc="/assets/cta-start-project.svg"
-              textColor={colors.cream}
-              width={166}
-              height={56}
-              fontSize={14}
+              variant="nav"
+              size="sm"
               onClick={handleNavClick('contact')}
             >
               Start a project
-            </BlobButton>
+            </BlobCta>
           </NavCtaWrap>
 
           <Hamburger
             ref={hamburgerRef}
+            $open={isOpen}
             onClick={isOpen ? closeMenu : openMenu}
             aria-label={isOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={isOpen}
             aria-controls="mobile-menu"
           >
-            <Image
-              src="/assets/hamburger-blob-border.svg"
-              alt=""
-              aria-hidden={true}
-              width={52}
-              height={50}
-              unoptimized
-              style={{
-                position: 'absolute',
-                inset: 0,
-                objectFit: 'fill',
-                pointerEvents: 'none',
-              }}
-            />
+            {/* Filled pink silhouette — revealed when the menu is open */}
+            <span data-hamburger-fill="" aria-hidden="true">
+              <svg
+                viewBox="0 0 50.6007 50"
+                preserveAspectRatio="none"
+                fill="none"
+                style={{ display: 'block', width: '100%', height: '100%' }}
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d={HAMBURGER_BLOB_D} fill={colors.pink} />
+              </svg>
+            </span>
+
+            <span
+              data-hamburger-border=""
+              aria-hidden="true"
+              style={{ position: 'absolute', inset: 0, display: 'block' }}
+            >
+              <Image
+                src="/assets/hamburger-blob-border.svg"
+                alt=""
+                aria-hidden={true}
+                width={52}
+                height={50}
+                unoptimized
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  objectFit: 'fill',
+                  pointerEvents: 'none',
+                }}
+              />
+            </span>
             <BurgerLines>
               <BurgerLine $open={isOpen} />
               <BurgerLine $open={isOpen} $bottom />
@@ -522,35 +832,28 @@ export function Navbar() {
         aria-label="Navigation"
       >
         <MenuNavList aria-label="Main navigation">
-          <MenuNavLink href="#proof" onClick={menuNavigate('proof')}>
-            Work
-          </MenuNavLink>
-          <MenuNavLink href="#build-in-public" onClick={menuNavigate('build-in-public')}>
-            Build in Public
-          </MenuNavLink>
-          <MenuNavLink href="#about" onClick={menuNavigate('about')}>
-            About
-          </MenuNavLink>
-          <MenuNavLink href="#contact" onClick={menuNavigate('contact')}>
-            Contact
-          </MenuNavLink>
+          {NAV_ITEMS.map(item => (
+            <MenuNavLink key={item.id} href={`#${item.id}`} onClick={menuNavigate(item.id)}>
+              <MenuNavLabel>
+                {item.label}
+                <MenuNavFill aria-hidden="true">{item.label}</MenuNavFill>
+              </MenuNavLabel>
+            </MenuNavLink>
+          ))}
         </MenuNavList>
 
         <MenuCtaWrap>
-          <MobileMenuPrimaryBlobWrap>
-            <Image
-              src="/assets/cta-primary-mobile.svg"
-              alt=""
-              aria-hidden={true}
-              fill
-              unoptimized
-              style={{ objectFit: 'fill', pointerEvents: 'none' }}
-            />
+          <MenuCtaRow>
             {/* Start a project → #contact */}
-            <a href="#contact" onClick={menuNavigate('contact')}>
+            <BlobCta
+              href="#contact"
+              variant="primary"
+              size="md"
+              onClick={menuNavigate('contact')}
+            >
               Start a project
-            </a>
-          </MobileMenuPrimaryBlobWrap>
+            </BlobCta>
+          </MenuCtaRow>
         </MenuCtaWrap>
       </MobileMenuOverlay>
     </>
