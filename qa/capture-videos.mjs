@@ -10,6 +10,7 @@
  * node qa/capture-videos.mjs
  */
 
+import { createRequire } from 'node:module';
 import puppeteer from 'puppeteer';
 import { mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -17,10 +18,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const FFMPEG = join(
-  __dirname,
-  '../node_modules/.pnpm/@ffmpeg-installer+darwin-arm64@4.1.5/node_modules/@ffmpeg-installer/darwin-arm64/ffmpeg',
-);
+// Resolved from qa/node_modules (see qa/tooling/) rather than a hardcoded
+// .pnpm store path, which broke whenever the version or platform changed.
+const FFMPEG = createRequire(import.meta.url)('@ffmpeg-installer/ffmpeg').path;
 process.env.PATH = `${dirname(FFMPEG)}:${process.env.PATH}`;
 
 const BASE_URL = 'http://localhost:3000';

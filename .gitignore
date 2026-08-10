@@ -54,3 +54,8 @@ next-env.d.ts
 /phase-5-current-videos.zip
 /phase-5-final-qa.zip
 /phase-5-runtime-final-webgl.zip
+
+# QA tooling is installed separately (see qa/tooling/README.md) into
+# qa/node_modules, deliberately outside the production dependency graph.
+/qa/node_modules/
+/qa/tooling/node_modules/

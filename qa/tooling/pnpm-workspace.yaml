@@ -1,0 +1,5 @@
+onlyBuiltDependencies:
+  - '@ffmpeg-installer/darwin-arm64'
+  - '@ffmpeg-installer/linux-x64'
+  - '@ffmpeg-installer/linux-arm64'
+  - puppeteer
