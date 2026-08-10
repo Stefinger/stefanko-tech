@@ -1,23 +1,14 @@
-# Build-script approval for this project.
+# Build-script approvals for pnpm 11.
 #
-# Two disjoint lists, one decision per package — no package appears in both.
-# These are the keys pnpm's installer actually acts on. A map-style
-# "allowBuilds" block was tried here and verified NOT to work: with it as the
-# only mechanism, pnpm still reported every script as ignored, including the
-# ones set to true. If pnpm ever appends an allowBuilds template to this file,
-# fold the decision into the lists below and delete the template.
+# Local QA requires Puppeteer and the Apple Silicon FFmpeg binary.
+# Production does not require Sharp or unrs-resolver build scripts.
+# Linux FFmpeg binaries are explicitly denied because Railway does not run
+# the local video-encoding QA during the website build.
 
-# Explicit devDependencies whose install scripts this project needs:
-#   puppeteer                       downloads the browser used by qa/*.mjs
-#   @ffmpeg-installer/darwin-arm64  marks the ffmpeg binary executable for
-#                                   qa/encode-videos*.mjs
-onlyBuiltDependencies:
-  - '@ffmpeg-installer/darwin-arm64'
-  - puppeteer
-
-# Transitive only, and unused here — every next/image call passes `unoptimized`
-# so sharp is never invoked, and lint passes without unrs-resolver's native
-# binding. Listed so pnpm does not report them as pending approval.
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+allowBuilds:
+  "@ffmpeg-installer/darwin-arm64": true
+  "@ffmpeg-installer/linux-x64": false
+  "@ffmpeg-installer/linux-arm64": false
+  puppeteer: true
+  sharp: false
+  unrs-resolver: false
