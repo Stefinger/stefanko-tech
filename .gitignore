@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated QA output — screenshots, screen recordings and console dumps
+# produced by the scripts in qa/. Listed individually on purpose: this repo
+# deliberately TRACKS some QA assets (qa/responsive-b-final/*.png and three
+# root *-qa.zip archives), so broad rules like qa/**, *.png or *.zip must not
+# be used here. Add a new line when a new capture directory appears.
+/qa 2/
+/qa/phase-5-blob-journey/
+/qa/phase-5-blob-journey-final/
+/qa/phase-5-runtime-final/
+/qa/phase-5-runtime-final-webgl/
+/phase-5-blob-journey-qa.zip
+/phase-5-current-videos.zip
+/phase-5-final-qa.zip
+/phase-5-runtime-final-webgl.zip
