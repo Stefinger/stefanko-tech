@@ -1,26 +1,6 @@
-# Build-script approvals for the PRODUCTION website dependency graph only.
-#
-# puppeteer and @ffmpeg-installer/* are deliberately absent. That tooling now
-# lives in qa/tooling/ with its own manifest and lockfile, so Railpack never
-# sees Puppeteer in this graph and never provisions Chromium/FFmpeg Linux
-# system packages for the Railway build.
-#
-# Both keys below are intentional and say the same thing — this is not the
-# earlier contradiction where a package was allowed in one key and ignored in
-# the other. They cover different pnpm majors:
-#   allowBuilds               pnpm 11
-#   ignoredBuiltDependencies  pnpm 10, where allowBuilds is a no-op (verified:
-#                             with allowBuilds alone, pnpm 10.25 still reports
-#                             ignored build scripts, exactly as with no config)
-# Keeping both means the build is warning-free whichever major Railway resolves.
-#
-# sharp and unrs-resolver are transitive and unused here: every next/image call
-# passes `unoptimized` so sharp is never invoked, and lint passes without
-# unrs-resolver's native binding.
+packages:
+  - '.'
+
 allowBuilds:
   sharp: false
   unrs-resolver: false
-
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
