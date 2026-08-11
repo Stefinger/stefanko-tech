@@ -18,7 +18,8 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: 'Stefanko.tech — Product Builder',
+  // Browser-tab title only — deliberately just the brand, no positioning line.
+  title: 'Stefanko.tech',
   description:
     'From idea to product. Jan Štefko connects product thinking, AI, design and technology to turn raw ideas into real products.',
 };
