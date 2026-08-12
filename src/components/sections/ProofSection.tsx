@@ -6,7 +6,7 @@ import { colors, fonts, media, spacing } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobCta } from '@/components/ui/BlobCta';
-import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
+import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -50,12 +50,12 @@ const Section = styled.section`
   background-color: ${colors.cream};
   position: relative;
   overflow: hidden;
-  scroll-margin-top: ${spacing.navHeight};
+  scroll-margin-top: calc(${spacing.navHeight} + var(--safe-top));
   padding-top: 66px;
   padding-bottom: 78px;
 
   ${media.mobile} {
-    scroll-margin-top: ${spacing.navHeightMobile};
+    scroll-margin-top: calc(${spacing.navHeightMobile} + var(--safe-top));
     padding-top: 48px;
     padding-bottom: 56px;
   }
@@ -291,7 +291,7 @@ const BuildPublicCard = styled.div`
   background-color: ${colors.darkGreenAlt};
   border-radius: 34px;
   overflow: hidden;
-  scroll-margin-top: ${spacing.navHeight};
+  scroll-margin-top: calc(${spacing.navHeight} + var(--safe-top));
   padding: 34px 28px;
   display: flex;
   flex-direction: column;
@@ -422,7 +422,7 @@ export function ProofSection() {
       <BlobOverlay aria-hidden="true">
         <BlobOverlayInner>
           <BlobSlotWrap>
-            <BlobSceneSlot slotKey="proof" />
+            <BlobSlot slotKey="proof" mobile="none" />
           </BlobSlotWrap>
         </BlobOverlayInner>
       </BlobOverlay>

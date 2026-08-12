@@ -6,7 +6,7 @@ import styled from 'styled-components';
 import { colors, fonts, spacing } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
+import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -15,7 +15,7 @@ const Section = styled.section`
   background-color: ${colors.darkGreen};
   position: relative;
   overflow: hidden;
-  scroll-margin-top: ${spacing.navHeight};
+  scroll-margin-top: calc(${spacing.navHeight} + var(--safe-top));
   padding-top: 68px;
   padding-bottom: 80px;
 
@@ -519,7 +519,7 @@ export function ClaritySection() {
             <ClarityStage>
               {/* Blob S slot — canvas renders above via z-index: 20 > filter: auto */}
               <BlobSWrap data-c-blob="">
-                <BlobSceneSlot slotKey="clarity" />
+                <BlobSlot slotKey="clarity" mobile="local" />
               </BlobSWrap>
 
               {/* Curved connectors — z-index: 30, above canvas (z-index: 20) */}
@@ -582,7 +582,8 @@ export function ClaritySection() {
             <InteractionText>
               <DesktopOnly>3D Blob S tilts and reacts toward the cursor.</DesktopOnly>
               <MobileOnly>
-                Blob S reacts to scroll progress. No hover or device orientation dependency.
+                Blob S renders in place, section by section. No scroll, hover or
+                device orientation dependency.
               </MobileOnly>
             </InteractionText>
           </div>

@@ -6,7 +6,7 @@ import { colors, fonts, media, spacing } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobCta } from '@/components/ui/BlobCta';
-import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
+import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -26,7 +26,7 @@ const Section = styled.section`
   background-color: ${colors.darkGreen};
   position: relative;
   overflow: hidden;
-  scroll-margin-top: ${spacing.navHeight};
+  scroll-margin-top: calc(${spacing.navHeight} + var(--safe-top));
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -42,7 +42,7 @@ const Section = styled.section`
   }
 
   ${media.mobile} {
-    scroll-margin-top: ${spacing.navHeightMobile};
+    scroll-margin-top: calc(${spacing.navHeightMobile} + var(--safe-top));
     padding-top: 48px;
   }
 `;
@@ -247,7 +247,7 @@ export function FinalCtaSection() {
           {/* Blob S slot — canvas renders above via z-index: 20 > filter: auto */}
           <BlobColumn data-f-blob="" aria-hidden="true">
             <BlobSlotInner>
-              <BlobSceneSlot slotKey="final" />
+              <BlobSlot slotKey="final" mobile="local" />
             </BlobSlotInner>
           </BlobColumn>
         </FinalGrid>

@@ -36,6 +36,33 @@ const NavHeader = styled.header`
   /* No border, no box-shadow, no divider — the wave is the only bottom edge. */
 `;
 
+/*
+ * Fills the iOS top inset with dark green.
+ *
+ * With viewport-fit=cover the page paints under the status bar, and whatever
+ * sits behind the navbar shows through there — which is how a cream section
+ * produced a light strip above the navbar. This layer is the only part of the
+ * navbar that enters the unsafe area; all visible content stays below it.
+ * Height collapses to 0 on every non-notched device.
+ */
+const SafeAreaFill = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background-color: ${colors.darkGreen};
+  pointer-events: none;
+  z-index: 2;
+`;
+
+/* Everything visible starts below the inset. Being positioned also makes it the
+   containing block for the wave layers, so they inherit the offset. */
+const NavShell = styled.div`
+  position: relative;
+  margin-top: var(--safe-top);
+`;
+
 /* Original viewBox kept; height reduced from 149 px → 108 px (shallower wave). */
 const DesktopWave = styled.svg`
   display: none;
@@ -394,13 +421,14 @@ const MobileMenuOverlay = styled.div<{ $open: boolean }>`
     position: fixed;
     inset: 0;
     width: 100%;
-    height: 100dvh;
     background-color: ${colors.darkGreen};
     z-index: 99;
-    padding-top: 90px; /* clear compact mobile navbar */
+    /* inset: 0 governs the height. An explicit 100dvh can fall short of the
+       visual viewport under viewport-fit=cover and leave a gap at the bottom. */
+    padding-top: calc(90px + var(--safe-top)); /* compact navbar + iOS inset */
     padding-left: 24px;
     padding-right: 24px;
-    padding-bottom: 40px;
+    padding-bottom: calc(40px + var(--safe-bottom));
     box-sizing: border-box;
 
     opacity: ${({ $open }) => ($open ? 1 : 0)};
@@ -683,143 +711,146 @@ export function Navbar() {
   return (
     <>
       <NavHeader>
-        <NavWaveBg aria-hidden="true">
-          {/* Pink under-wave — behind the dark green, fades in once scrolled */}
-          <PinkWaveLayer $visible={isScrolled}>
-            <DesktopWave
-              viewBox="0 0 1440 149.297"
-              preserveAspectRatio="none"
-              fill="none"
-              overflow="visible"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d={DESKTOP_PINK_WAVE_D} fill={colors.pink} />
-            </DesktopWave>
-            <MobileWave
-              viewBox="0 0 390 112"
-              preserveAspectRatio="none"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d={MOBILE_PINK_WAVE_D} fill={colors.pink} />
-            </MobileWave>
-          </PinkWaveLayer>
-
-          <MainWaveLayer>
-            {/* Desktop wave — Figma node 104:3, original path, height reduced from 149→108 px */}
-            <DesktopWave
-              viewBox="0 0 1440 149.297"
-              preserveAspectRatio="none"
-              fill="none"
-              overflow="visible"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d={DESKTOP_WAVE_D} fill={colors.darkGreen} />
-            </DesktopWave>
-
-            {/* Mobile wave — original Figma path, height reduced from 112→90 px */}
-            <MobileWave
-              viewBox="0 0 390 112"
-              preserveAspectRatio="none"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d={MOBILE_WAVE_D} fill={colors.darkGreen} />
-            </MobileWave>
-          </MainWaveLayer>
-        </NavWaveBg>
-
-        <NavContentRow>
-          <LogoGroup href="/">
-            <NavBlobSWrap data-nav-logo-blob="">
-              <Image
-                src="/assets/blob-s-nav.svg"
-                alt="Stefanko.tech"
-                fill
-                unoptimized
-                style={{ objectFit: 'contain' }}
-              />
-            </NavBlobSWrap>
-            <Wordmark>stefanko.tech</Wordmark>
-          </LogoGroup>
-
-          <NavLinks>
-            {NAV_ITEMS.map(item => (
-              <NavLink key={item.id} href={`#${item.id}`} onClick={handleNavClick(item.id)}>
-                <NavLinkCloud aria-hidden="true">
-                  <svg
-                    viewBox={NAV_CLOUD.viewBox}
-                    preserveAspectRatio="none"
-                    fill="none"
-                    style={{ display: 'block', width: '100%', height: '100%' }}
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d={NAV_CLOUD.d} fill={colors.pink} />
-                  </svg>
-                </NavLinkCloud>
-                <span className="nav-link-text">{item.label}</span>
-              </NavLink>
-            ))}
-          </NavLinks>
-
-          <NavCtaWrap>
-            <BlobCta
-              href="#contact"
-              variant="nav"
-              size="sm"
-              onClick={handleNavClick('contact')}
-            >
-              Start a project
-            </BlobCta>
-          </NavCtaWrap>
-
-          <Hamburger
-            ref={hamburgerRef}
-            $open={isOpen}
-            onClick={isOpen ? closeMenu : openMenu}
-            aria-label={isOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={isOpen}
-            aria-controls="mobile-menu"
-          >
-            {/* Filled pink silhouette — revealed when the menu is open */}
-            <span data-hamburger-fill="" aria-hidden="true">
-              <svg
-                viewBox="0 0 50.6007 50"
+        <SafeAreaFill aria-hidden="true" />
+        <NavShell>
+          <NavWaveBg aria-hidden="true">
+            {/* Pink under-wave — behind the dark green, fades in once scrolled */}
+            <PinkWaveLayer $visible={isScrolled}>
+              <DesktopWave
+                viewBox="0 0 1440 149.297"
                 preserveAspectRatio="none"
                 fill="none"
-                style={{ display: 'block', width: '100%', height: '100%' }}
+                overflow="visible"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path d={HAMBURGER_BLOB_D} fill={colors.pink} />
-              </svg>
-            </span>
+                <path d={DESKTOP_PINK_WAVE_D} fill={colors.pink} />
+              </DesktopWave>
+              <MobileWave
+                viewBox="0 0 390 112"
+                preserveAspectRatio="none"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d={MOBILE_PINK_WAVE_D} fill={colors.pink} />
+              </MobileWave>
+            </PinkWaveLayer>
 
-            <span
-              data-hamburger-border=""
-              aria-hidden="true"
-              style={{ position: 'absolute', inset: 0, display: 'block' }}
+            <MainWaveLayer>
+              {/* Desktop wave — Figma node 104:3, original path, height reduced from 149→108 px */}
+              <DesktopWave
+                viewBox="0 0 1440 149.297"
+                preserveAspectRatio="none"
+                fill="none"
+                overflow="visible"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d={DESKTOP_WAVE_D} fill={colors.darkGreen} />
+              </DesktopWave>
+
+              {/* Mobile wave — original Figma path, height reduced from 112→90 px */}
+              <MobileWave
+                viewBox="0 0 390 112"
+                preserveAspectRatio="none"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d={MOBILE_WAVE_D} fill={colors.darkGreen} />
+              </MobileWave>
+            </MainWaveLayer>
+          </NavWaveBg>
+
+          <NavContentRow>
+            <LogoGroup href="/">
+              <NavBlobSWrap data-nav-logo-blob="">
+                <Image
+                  src="/assets/blob-s-nav.svg"
+                  alt="Stefanko.tech"
+                  fill
+                  unoptimized
+                  style={{ objectFit: 'contain' }}
+                />
+              </NavBlobSWrap>
+              <Wordmark>stefanko.tech</Wordmark>
+            </LogoGroup>
+
+            <NavLinks>
+              {NAV_ITEMS.map(item => (
+                <NavLink key={item.id} href={`#${item.id}`} onClick={handleNavClick(item.id)}>
+                  <NavLinkCloud aria-hidden="true">
+                    <svg
+                      viewBox={NAV_CLOUD.viewBox}
+                      preserveAspectRatio="none"
+                      fill="none"
+                      style={{ display: 'block', width: '100%', height: '100%' }}
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d={NAV_CLOUD.d} fill={colors.pink} />
+                    </svg>
+                  </NavLinkCloud>
+                  <span className="nav-link-text">{item.label}</span>
+                </NavLink>
+              ))}
+            </NavLinks>
+
+            <NavCtaWrap>
+              <BlobCta
+                href="#contact"
+                variant="nav"
+                size="sm"
+                onClick={handleNavClick('contact')}
+              >
+                Start a project
+              </BlobCta>
+            </NavCtaWrap>
+
+            <Hamburger
+              ref={hamburgerRef}
+              $open={isOpen}
+              onClick={isOpen ? closeMenu : openMenu}
+              aria-label={isOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isOpen}
+              aria-controls="mobile-menu"
             >
-              <Image
-                src="/assets/hamburger-blob-border.svg"
-                alt=""
-                aria-hidden={true}
-                width={52}
-                height={50}
-                unoptimized
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  objectFit: 'fill',
-                  pointerEvents: 'none',
-                }}
-              />
-            </span>
-            <BurgerLines>
-              <BurgerLine $open={isOpen} />
-              <BurgerLine $open={isOpen} $bottom />
-            </BurgerLines>
-          </Hamburger>
-        </NavContentRow>
+              {/* Filled pink silhouette — revealed when the menu is open */}
+              <span data-hamburger-fill="" aria-hidden="true">
+                <svg
+                  viewBox="0 0 50.6007 50"
+                  preserveAspectRatio="none"
+                  fill="none"
+                  style={{ display: 'block', width: '100%', height: '100%' }}
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d={HAMBURGER_BLOB_D} fill={colors.pink} />
+                </svg>
+              </span>
+
+              <span
+                data-hamburger-border=""
+                aria-hidden="true"
+                style={{ position: 'absolute', inset: 0, display: 'block' }}
+              >
+                <Image
+                  src="/assets/hamburger-blob-border.svg"
+                  alt=""
+                  aria-hidden={true}
+                  width={52}
+                  height={50}
+                  unoptimized
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    objectFit: 'fill',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </span>
+              <BurgerLines>
+                <BurgerLine $open={isOpen} />
+                <BurgerLine $open={isOpen} $bottom />
+              </BurgerLines>
+            </Hamburger>
+          </NavContentRow>
+        </NavShell>
       </NavHeader>
 
       {/* Fullscreen mobile navigation overlay */}

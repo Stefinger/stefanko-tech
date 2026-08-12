@@ -6,7 +6,7 @@ import styled from 'styled-components';
 import { colors, fonts, media } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
+import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap, ScrollTrigger } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -560,7 +560,7 @@ export function UncertaintySection() {
       <OverlayContainer aria-hidden="true">
         <OverlayInner>
           <BlobSlotWrap>
-            <BlobSceneSlot slotKey="uncertainty" hideFallbackOnMobile />
+            <BlobSlot slotKey="uncertainty" mobile="none" />
           </BlobSlotWrap>
         </OverlayInner>
       </OverlayContainer>

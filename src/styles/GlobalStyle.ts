@@ -8,8 +8,18 @@ export const GlobalStyle = createGlobalStyle`
     padding: 0;
   }
 
+  :root {
+    /* Resolves to 0px everywhere except iOS Safari with viewport-fit=cover,
+       so it can be added unconditionally without affecting desktop. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   html {
     height: 100%;
+    /* Paints the top inset dark green before any component mounts, so there is
+       no frame in which Safari can show a lighter colour above the navbar. */
+    background-color: ${colors.darkGreen};
     /* scroll-behavior is intentionally NOT set to smooth globally.
        Global smooth-scroll causes the browser to animate from scrollY=0
        on a fresh direct load at #about or #contact, showing the Hero for

@@ -6,7 +6,7 @@ import { colors, fonts, spacing } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobCta } from '@/components/ui/BlobCta';
-import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
+import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -29,17 +29,17 @@ const Section = styled.section`
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding-top: calc(${spacing.navHeight} + clamp(12px, 2.4vh, 40px));
+  padding-top: calc(${spacing.navHeight} + clamp(12px, 2.4vh, 40px) + var(--safe-top));
   padding-bottom: clamp(72px, 11vh, 132px);
 
   @media (max-width: 991px) {
     justify-content: flex-start;
-    padding-top: calc(${spacing.navHeight} + 24px);
+    padding-top: calc(${spacing.navHeight} + 24px + var(--safe-top));
     padding-bottom: 72px;
   }
 
   @media (max-width: 767px) {
-    padding-top: calc(${spacing.navHeightMobile} + 20px);
+    padding-top: calc(${spacing.navHeightMobile} + 20px + var(--safe-top));
     padding-bottom: 64px;
   }
 `;
@@ -325,7 +325,7 @@ export function HeroSection() {
             {/* Mobile blob slot — canvas renders above filter stacking context */}
             <BlobNarrowWrap data-hero-blob-n="">
               <BlobNarrowInner>
-                <BlobSceneSlot slotKey="hero-mobile" />
+                <BlobSlot slotKey="hero-mobile" mobile="local" />
               </BlobNarrowInner>
             </BlobNarrowWrap>
 
@@ -349,7 +349,7 @@ export function HeroSection() {
           {/* Desktop blob slot — canvas renders above filter stacking context */}
           <BlobDesktopWrap data-hero-blob-d="">
             <BlobDesktopImgWrap>
-              <BlobSceneSlot slotKey="hero-desktop" />
+              <BlobSlot slotKey="hero-desktop" mobile="none" />
             </BlobDesktopImgWrap>
           </BlobDesktopWrap>
         </HeroGrid>

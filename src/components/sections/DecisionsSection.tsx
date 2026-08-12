@@ -6,7 +6,7 @@ import styled from 'styled-components';
 import { colors, fonts } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
+import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -600,7 +600,7 @@ export function DecisionsSection() {
       <BlobOverlay aria-hidden="true">
         <BlobOverlayInner>
           <BlobSlotWrap>
-            <BlobSceneSlot slotKey="decisions" hideFallbackOnMobile />
+            <BlobSlot slotKey="decisions" mobile="none" />
           </BlobSlotWrap>
         </BlobOverlayInner>
       </BlobOverlay>

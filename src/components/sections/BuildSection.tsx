@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { colors, fonts, motion } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { BlobSceneSlot } from '@/components/blob/BlobSceneSlot';
+import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
@@ -473,7 +473,7 @@ export function BuildSection() {
       <BlobOverlay aria-hidden="true">
         <BlobOverlayInner>
           <BlobSlotWrap>
-            <BlobSceneSlot slotKey="build" />
+            <BlobSlot slotKey="build" mobile="none" />
           </BlobSlotWrap>
         </BlobOverlayInner>
       </BlobOverlay>
