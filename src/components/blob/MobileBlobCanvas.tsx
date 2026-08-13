@@ -49,13 +49,14 @@ const Wrap = styled.div`
  * against a dead straight canvas edge the moment it moves.
  */
 /*
- * Sized against the worst case, not the average one. The 590 × 780 face needs
- * room for the bevel overhang (~3 %), the ±23 px drift and the Z tilt, which
- * widens a tall silhouette faster than anything else here. 12 % was measurably
- * too little once the motion was strengthened — the blob reached the canvas
- * edge and cut against a dead straight line. The canvas is transparent and
- * pointer-inert, so the only cost of the extra area is fill rate on a surface
- * that is a few hundred pixels across.
+ * Sized against the worst case, not the average one: the 590 × 780 face needs
+ * room for the bevel overhang (~3 %) plus the drift and the Z tilt, which
+ * widens a tall silhouette faster than anything else here.
+ *
+ * Kept at 0.24 after the motion was dialled back, so the headroom is now
+ * comfortable rather than tight — the blob renders at exactly the same size
+ * either way, since the mesh is fitted to the SLOT, and the only cost is fill
+ * rate on a transparent surface a few hundred pixels across.
  */
 const BLEED = 0.24;
 const CANVAS_SCALE = 1 + BLEED * 2;
@@ -159,16 +160,17 @@ function FittedBlob({
     /*
      * Scroll turns the blob; idle breathing keeps it alive when scroll is still.
      *
-     * The Y sweep carries the response — ±27°, enough to read clearly as the
-     * section passes without ever looking like a spinning object. X and Z stay
-     * small deliberately: Z in particular costs the most bounding box for the
-     * least legibility, since tilting a tall shape widens its silhouette fast.
+     * These coefficients are the approved set from d5d296e, restored verbatim.
+     * A later pass pushed them to ±27° / ±23 px and that read as a mechanically
+     * rotating object rather than a shape moving through the composition — it
+     * was rejected. Do not raise them again without asking: the balance here,
+     * not the magnitude, is what was signed off.
      */
-    mesh.rotation.x = -0.05 + swing * 0.26 + Math.sin(t * 0.28) * 0.012;
-    mesh.rotation.y = 0.08 + swing * 0.95 + Math.sin(t * 0.35) * 0.04;
-    mesh.rotation.z = 0.02 - swing * 0.14 + Math.sin(t * 0.22 + 1.2) * 0.016;
-    // Counter-drift within the slot — ±23 px, inside the canvas headroom.
-    mesh.position.y = swing * 0.46;
+    mesh.rotation.x = -0.05 + swing * 0.16 + Math.sin(t * 0.28) * 0.012;
+    mesh.rotation.y = 0.08 + swing * 0.62 + Math.sin(t * 0.35) * 0.04;
+    mesh.rotation.z = 0.02 - swing * 0.1 + Math.sin(t * 0.22 + 1.2) * 0.016;
+    // Slight counter-drift within the slot — 12 px of parallax at most.
+    mesh.position.y = swing * 0.24;
   });
 
   return (
