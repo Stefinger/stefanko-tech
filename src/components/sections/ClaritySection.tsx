@@ -582,7 +582,7 @@ export function ClaritySection() {
             <InteractionText>
               <DesktopOnly>3D Blob S tilts and reacts toward the cursor.</DesktopOnly>
               <MobileOnly>
-                Blob S renders in place, section by section. No scroll, hover or
+                Blob S turns with scroll inside its own section. No hover or
                 device orientation dependency.
               </MobileOnly>
             </InteractionText>

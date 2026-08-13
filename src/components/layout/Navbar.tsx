@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import styled, { css } from 'styled-components';
 import { colors, fonts, media, motion } from '@/styles/tokens';
+import { setMenuOpen } from '@/lib/menuOpenState';
 import { BlobCta } from '@/components/ui/BlobCta';
 import { SHAPE_NAV } from '@/components/ui/blobShapes';
 
@@ -37,29 +38,50 @@ const NavHeader = styled.header`
 `;
 
 /*
- * Fills the iOS top inset with dark green.
+ * Dark-green backdrop for the top of the page.
  *
- * With viewport-fit=cover the page paints under the status bar, and whatever
- * sits behind the navbar shows through there — which is how a cream section
- * produced a light strip above the navbar. This layer is the only part of the
- * navbar that enters the unsafe area; all visible content stays below it.
- * Height collapses to 0 on every non-notched device.
+ * An exact-height fill of the iOS inset is not enough, and that is why a light
+ * strip survived the first attempt. Three separate things can briefly expose
+ * the area above the navbar on iPhone, and none of them are a wrong inset
+ * value:
+ *
+ *   1. While Safari's chrome collapses or expands, a position:fixed element is
+ *      not repositioned in lockstep with the visual viewport — the header lags
+ *      by a few pixels and whatever sits behind it shows through above.
+ *   2. env(safe-area-inset-top) itself changes during that transition, so a
+ *      layer sized to exactly the inset is briefly the wrong height.
+ *   3. At DPR 3 a layer that ends exactly where the wave begins can leave a
+ *      sub-pixel seam.
+ *
+ * So the backdrop is deliberately oversized rather than exact: it starts far
+ * above the viewport and ends well inside the navbar, behind the solid top of
+ * the wave. There is no state in which a gap can open, because there is no edge
+ * near the top of the screen to expose. Off iOS --safe-top is 0 and the whole
+ * layer sits above the viewport apart from the part hidden behind the wave, so
+ * desktop renders identically.
  */
-const SafeAreaFill = styled.div`
+const TOP_BACKDROP_OVERSHOOT = 240; // px above the viewport top
+const TOP_BACKDROP_BLEED = 40;      // px down into the wave's solid band
+
+const NavTopBackdrop = styled.div`
   position: absolute;
-  top: 0;
+  top: -${TOP_BACKDROP_OVERSHOOT}px;
   left: 0;
   right: 0;
-  height: var(--safe-top);
+  height: calc(
+    ${TOP_BACKDROP_OVERSHOOT}px + var(--safe-top) + ${TOP_BACKDROP_BLEED}px
+  );
   background-color: ${colors.darkGreen};
   pointer-events: none;
-  z-index: 2;
+  z-index: 0;
 `;
 
 /* Everything visible starts below the inset. Being positioned also makes it the
-   containing block for the wave layers, so they inherit the offset. */
+   containing block for the wave layers, so they inherit the offset. The z-index
+   keeps the whole navbar above the backdrop that bleeds up behind it. */
 const NavShell = styled.div`
   position: relative;
+  z-index: 1;
   margin-top: var(--safe-top);
 `;
 
@@ -633,6 +655,14 @@ export function Navbar() {
     [],
   );
 
+  // Publish open state so the mobile Blob S can pause rendering while the
+  // overlay covers the page. This is a render gate only — the blob never uses
+  // it to work out where it should be.
+  useEffect(() => {
+    setMenuOpen(isOpen);
+    return () => setMenuOpen(false);
+  }, [isOpen]);
+
   // Effect 1 — scroll lock
   // Cleanup runs first when isOpen flips false, restoring body and scroll.
   useEffect(() => {
@@ -711,7 +741,7 @@ export function Navbar() {
   return (
     <>
       <NavHeader>
-        <SafeAreaFill aria-hidden="true" />
+        <NavTopBackdrop aria-hidden="true" />
         <NavShell>
           <NavWaveBg aria-hidden="true">
             {/* Pink under-wave — behind the dark green, fades in once scrolled */}
