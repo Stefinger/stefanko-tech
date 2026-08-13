@@ -38,30 +38,53 @@ await page.goto(URL, { waitUntil: 'load', timeout: 60000 });
 await page.addStyleTag({ content: `:root { --safe-top: ${INSET}px !important; }` });
 await sleep(2600);
 
-/* Decodes a screenshot in-page (no native image deps) and returns its pixels. */
-const decode = (b64) => page.evaluate(async data => {
-  const img = new Image();
-  img.src = 'data:image/png;base64,' + data;
-  await img.decode();
-  const c = document.createElement('canvas');
-  c.width = img.width; c.height = img.height;
-  c.getContext('2d').drawImage(img, 0, 0);
-  return Array.from(c.getContext('2d').getImageData(0, 0, c.width, c.height).data);
-}, b64);
+/*
+ * Screenshots are taken of the WHOLE viewport and cropped afterwards.
+ *
+ * `page.screenshot({ clip })` was tried first and its origin proved
+ * unreliable across scroll states here — a check built on it silently samples
+ * the wrong region and then passes for free. A full viewport capture is
+ * unambiguous by definition: pixel (x, y) is CSS pixel (x, y) of the viewport
+ * at deviceScaleFactor 1. Every check below is control-tested at the end of
+ * this file to prove it can still fail.
+ */
+const viewportPixels = async () => {
+  const b64 = await page.screenshot({ encoding: 'base64' });
+  return page.evaluate(async data => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + data;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const g = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    return { w: g.width, h: g.height, d: Array.from(g.data) };
+  }, b64);
+};
+
+/* Extracts a viewport-coordinate rectangle from a decoded viewport capture. */
+const crop = (img, x, y, w, h) => {
+  const out = [];
+  for (let row = y; row < y + h; row++) {
+    if (row < 0 || row >= img.h) continue;
+    for (let col = x; col < x + w; col++) {
+      if (col < 0 || col >= img.w) continue;
+      const i = (row * img.w + col) * 4;
+      out.push(img.d[i], img.d[i + 1], img.d[i + 2]);
+    }
+  }
+  return out;
+};
 
 /* Fraction of pixels in the top strip that are not the brand dark green. */
-async function topStripNonDark(extraHeight = 0) {
-  const h = INSET + extraHeight;
-  const b64 = await page.screenshot({
-    clip: { x: 0, y: 0, width: 390, height: h }, encoding: 'base64',
-  });
-  const d = await decode(b64);
+async function topStripNonDark() {
+  const px = crop(await viewportPixels(), 0, 0, 390, INSET);
   let bad = 0;
-  for (let i = 0; i < d.length; i += 4) {
+  for (let i = 0; i < px.length; i += 3) {
     // Anything lighter than a dark tone counts as a leak.
-    if (d[i] > 60 || d[i + 1] > 80 || d[i + 2] > 75) bad++;
+    if (px[i] > 60 || px[i + 1] > 80 || px[i + 2] > 75) bad++;
   }
-  return bad / (d.length / 4);
+  return bad / (px.length / 3);
 }
 
 const scrollTo = async y => { await page.evaluate(v => window.scrollTo(0, v), y); await sleep(700); };
@@ -175,10 +198,7 @@ async function blobPixels(section, y) {
     return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
   }, section);
   if (!box || box.y < 0 || box.y + box.h > 844) return null;
-  const b64 = await page.screenshot({
-    clip: { x: box.x, y: box.y, width: box.w, height: box.h }, encoding: 'base64',
-  });
-  return decode(b64);
+  return crop(await viewportPixels(), box.x, box.y, box.w, box.h);
 }
 
 for (const s of ['hero', 'clarity', 'final']) {
@@ -190,8 +210,8 @@ for (const s of ['hero', 'clarity', 'final']) {
     continue;
   }
   let diff = 0;
-  for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) > 6) diff++;
-  const pct = diff / (a.length / 4);
+  for (let i = 0; i < a.length; i += 3) if (Math.abs(a[i] - b[i]) > 6) diff++;
+  const pct = diff / (a.length / 3);
   check(`${s.padEnd(12)} pose changes with scroll`, pct > 0.01, `${(pct * 100).toFixed(1)}% of pixels differ`);
 }
 
@@ -260,6 +280,41 @@ const overflow = await page.evaluate(() =>
   Math.max(0, document.documentElement.scrollWidth - window.innerWidth));
 check('no horizontal overflow', overflow === 0, `${overflow}px`);
 check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+
+/*
+ * ── E. Controls ────────────────────────────────────────────────────────────
+ * A green suite proves nothing unless its checks can go red. These run last
+ * because they deliberately break the page.
+ */
+console.log('\n── E. controls — the checks above must be able to fail ──');
+
+await scrollTo((await sectionTop('proof')) + 300);
+const withFix = await topStripNonDark();
+// Same scroll position twice: only idle breathing separates the two samples.
+const ct = await sectionTop('clarity');
+const q1 = await blobPixels('clarity', ct + 200);
+const q2 = await blobPixels('clarity', ct + 200);
+let same = 0;
+for (let i = 0; i < q1.length; i += 3) if (Math.abs(q1[i] - q2[i]) > 6) same++;
+const idlePct = same / (q1.length / 3);
+check(
+  'B2 reads scroll, not noise',
+  idlePct < 0.03,
+  `${(idlePct * 100).toFixed(1)}% differ at an UNCHANGED scroll position`,
+);
+
+// Neutralise the backdrop and confirm the strip check goes red.
+await scrollTo((await sectionTop('proof')) + 300);
+await page.addStyleTag({
+  content: 'header > div:first-child { background-color: transparent !important; }',
+});
+await sleep(400);
+const noBackdrop = await topStripNonDark();
+check(
+  'strip check detects a removed backdrop',
+  withFix === 0 && noBackdrop > 0.5,
+  `${(withFix * 100).toFixed(1)}% with the fix → ${(noBackdrop * 100).toFixed(1)}% without it`,
+);
 
 const failed = results.filter(r => !r).length;
 console.log(`\n  ${results.length - failed}/${results.length} checks passed${failed ? ` — ${failed} FAILED` : ' ✓'}\n`);

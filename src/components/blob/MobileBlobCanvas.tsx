@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useMemo, useEffect, useState, Component } from 'react';
+import { useRef, useMemo, useEffect, useState, useCallback, Component } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { RootState } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -39,15 +39,53 @@ const Wrap = styled.div`
   pointer-events: none;
 `;
 
+/*
+ * The canvas is larger than the slot; the blob is not.
+ *
+ * The mesh is fitted to the SLOT and the extra area is pure headroom, so the
+ * blob renders at exactly the approved size while scroll drift, the bevel
+ * overhang and the rotation sweep all stay well inside the drawing surface.
+ * Without it, a slot whose aspect ratio matches the artwork clips the blob
+ * against a dead straight canvas edge the moment it moves.
+ */
+/*
+ * Sized against the worst case, not the average one. The 590 × 780 face needs
+ * room for the bevel overhang (~3 %), the ±23 px drift and the Z tilt, which
+ * widens a tall silhouette faster than anything else here. 12 % was measurably
+ * too little once the motion was strengthened — the blob reached the canvas
+ * edge and cut against a dead straight line. The canvas is transparent and
+ * pointer-inert, so the only cost of the extra area is fill rate on a surface
+ * that is a few hundred pixels across.
+ */
+const BLEED = 0.24;
+const CANVAS_SCALE = 1 + BLEED * 2;
+
+const CanvasLayer = styled.div`
+  position: absolute;
+  inset: -${BLEED * 100}%;
+  z-index: 1;
+`;
+
+/* Sits under the canvas. Visible until WebGL has actually painted, and again if
+   the context is ever lost — so the slot is never empty on any device. */
+const FallbackLayer = styled.div<{ $visible: boolean }>`
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+`;
+
 /* Sizes the mesh to the canvas exactly as the journey does: camera zoom is
    PX_PER_WU, so one world unit is 100 px, and the natural 590 × 780 face is
    fitted to the slot with the same min() rule. Identical framing. */
 function FittedBlob({
   animate,
   hostRef,
+  onPainted,
 }: {
   animate: boolean;
   hostRef: React.RefObject<HTMLDivElement | null>;
+  onPainted: () => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const size = useThree(s => s.size);
@@ -57,7 +95,11 @@ function FittedBlob({
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  const scale = Math.min(size.width / BLOB_NATURAL_W, size.height / BLOB_NATURAL_H);
+  // Divided by CANVAS_SCALE because the canvas is bled out past the slot: the
+  // blob keeps exactly the size it would have had if the canvas matched the
+  // slot, and the extra area is headroom for the motion below.
+  const scale =
+    Math.min(size.width / BLOB_NATURAL_W, size.height / BLOB_NATURAL_H) / CANVAS_SCALE;
 
   // Smoothed section-local scroll progress. `null` means "not yet sampled", so
   // the first rendered frame adopts the true value instead of easing into it
@@ -67,6 +109,9 @@ function FittedBlob({
   useFrame((state, delta) => {
     const mesh = meshRef.current;
     if (!mesh) return;
+    // Reported after the first real frame so the flat fallback underneath can
+    // step aside only once WebGL is genuinely drawing.
+    onPainted();
     mesh.scale.set(scale, scale, scale);
     if (!animate) {
       mesh.rotation.set(-0.05, 0.08, 0.02);
@@ -111,13 +156,19 @@ function FittedBlob({
     const swing = p - 0.5; // -0.5 … 0.5 across the section's travel
     const t = state.clock.elapsedTime;
 
-    // Scroll turns the blob; idle breathing keeps it alive when scroll is still.
-    mesh.rotation.x = -0.05 + swing * 0.16 + Math.sin(t * 0.28) * 0.012;
-    mesh.rotation.y = 0.08 + swing * 0.62 + Math.sin(t * 0.35) * 0.04;
-    mesh.rotation.z = 0.02 - swing * 0.1 + Math.sin(t * 0.22 + 1.2) * 0.016;
-    // Slight counter-drift within the slot — 12 px of parallax at most, well
-    // inside the slot bounds so it can never reach the copy beside it.
-    mesh.position.y = swing * 0.24;
+    /*
+     * Scroll turns the blob; idle breathing keeps it alive when scroll is still.
+     *
+     * The Y sweep carries the response — ±27°, enough to read clearly as the
+     * section passes without ever looking like a spinning object. X and Z stay
+     * small deliberately: Z in particular costs the most bounding box for the
+     * least legibility, since tilting a tall shape widens its silhouette fast.
+     */
+    mesh.rotation.x = -0.05 + swing * 0.26 + Math.sin(t * 0.28) * 0.012;
+    mesh.rotation.y = 0.08 + swing * 0.95 + Math.sin(t * 0.35) * 0.04;
+    mesh.rotation.z = 0.02 - swing * 0.14 + Math.sin(t * 0.22 + 1.2) * 0.016;
+    // Counter-drift within the slot — ±23 px, inside the canvas headroom.
+    mesh.position.y = swing * 0.46;
   });
 
   return (
@@ -143,15 +194,27 @@ class CanvasErrorBoundary extends Component<EBProps, { caught: boolean }> {
 interface MobileBlobCanvasProps {
   /** Static pose instead of idle breathing (prefers-reduced-motion). */
   animate?: boolean;
-  /** Rendered if WebGL is unavailable or the context is lost. */
+  /** Shown until WebGL paints, and again if the context is lost. */
   fallback: React.ReactNode;
 }
 
 export function MobileBlobCanvas({ animate = true, fallback }: MobileBlobCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [painted, setPainted] = useState(false);
   const menuOpen = useMenuOpen();
+
+  // Ref-guarded so the per-frame call costs nothing after the first frame.
+  const paintedRef = useRef(false);
+  const markPainted = useCallback(() => {
+    if (paintedRef.current) return;
+    paintedRef.current = true;
+    setPainted(true);
+  }, []);
+  const clearPainted = useCallback(() => {
+    paintedRef.current = false;
+    setPainted(false);
+  }, []);
 
   /*
    * Rendering stops while the menu is open, and resumes on close.
@@ -177,25 +240,42 @@ export function MobileBlobCanvas({ animate = true, fallback }: MobileBlobCanvasP
     return () => io.disconnect();
   }, []);
 
+  /*
+   * Context loss is recoverable, not terminal.
+   *
+   * iOS Safari drops WebGL contexts on memory pressure and after backgrounding,
+   * and a page with three of them is a realistic candidate. Preventing the
+   * default keeps the context restorable, and both edges are handled: the flat
+   * silhouette comes back the moment drawing stops, and steps aside again once
+   * a real frame has been painted. Listeners are not `once` — a device can lose
+   * a context more than one time in a session.
+   */
   const handleCreated = (state: RootState) => {
-    state.gl.domElement.addEventListener(
-      'webglcontextlost',
-      (e: Event) => { e.preventDefault(); setFailed(true); },
-      { once: true },
-    );
+    const el = state.gl.domElement;
+    el.addEventListener('webglcontextlost', (e: Event) => {
+      e.preventDefault();
+      clearPainted();
+    });
+    el.addEventListener('webglcontextrestored', clearPainted);
   };
-
-  if (failed) return <>{fallback}</>;
 
   return (
     <Wrap ref={wrapRef} aria-hidden="true">
-      <CanvasErrorBoundary onError={() => setFailed(true)}>
+      {/* Under the canvas. The slot is never empty: if WebGL never paints — no
+          context, a lost context, a zero-sized drawing buffer — the approved
+          flat Blob S stays in the composition instead of nothing at all. */}
+      <FallbackLayer $visible={!painted}>{fallback}</FallbackLayer>
+
+      <CanvasErrorBoundary onError={clearPainted}>
+        <CanvasLayer>
         <Canvas
           flat
           orthographic
           camera={{ zoom: PX_PER_WU, near: 0.1, far: 200, position: [0, 0, 10] }}
           dpr={[1, 1.5]}
-          frameloop={active ? 'always' : 'never'}
+          /* Runs until the first frame lands so the handover happens off-screen,
+             then falls back to rendering only while on screen and menu-free. */
+          frameloop={active || !painted ? 'always' : 'never'}
           gl={{ antialias: true, alpha: true, powerPreference: 'default' }}
           onCreated={handleCreated}
           style={{ background: 'transparent' }}
@@ -204,8 +284,13 @@ export function MobileBlobCanvas({ animate = true, fallback }: MobileBlobCanvasP
           <ambientLight intensity={1.55} />
           <directionalLight position={[3, 5, 4]} intensity={1.25} color="#ffffff" />
           <directionalLight position={[-2, -1, 2]} intensity={0.55} color="#ffc8dc" />
-          <FittedBlob animate={animate} hostRef={wrapRef} />
+          <FittedBlob
+            animate={animate}
+            hostRef={wrapRef}
+            onPainted={markPainted}
+          />
         </Canvas>
+        </CanvasLayer>
       </CanvasErrorBoundary>
     </Wrap>
   );

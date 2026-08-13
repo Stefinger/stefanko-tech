@@ -146,18 +146,35 @@ const BlobColumn = styled.div`
   }
 `;
 
+/*
+ * Both axes are stated explicitly.
+ *
+ * This box used to give only a height and let `aspect-ratio` derive the width,
+ * as a centred flex item. Chrome resolves that fine, which is why it measured
+ * correctly in every headless check, but it is the most fragile of the three
+ * mobile blob slots — Hero pins a max-width and Clarity states a width outright,
+ * so Final was the only one whose width existed purely as a derivation from a
+ * viewport-unit height. It is also the only one that failed on real iOS Safari,
+ * where that derivation collapses and leaves a zero-width canvas with nothing
+ * to draw into.
+ *
+ * Stating the width in the same clamp removes the derivation. The computed size
+ * is identical in every engine that already got it right.
+ */
 const BlobSlotInner = styled.div`
   position: relative;
-  height: clamp(280px, 46svh, 540px);
+  --slot-h: clamp(280px, 46svh, 540px);
+  height: var(--slot-h);
+  width: calc(var(--slot-h) * 590 / 780);
   max-width: 100%;
-  aspect-ratio: 590 / 780;
+  flex-shrink: 0;
 
   @media (min-width: 992px) and (max-width: 1199px) {
-    height: clamp(260px, 38svh, 400px);
+    --slot-h: clamp(260px, 38svh, 400px);
   }
 
   @media (max-width: 991px) {
-    height: clamp(200px, 30svh, 280px);
+    --slot-h: clamp(200px, 30svh, 280px);
   }
 `;
 
