@@ -19,6 +19,12 @@ import { BLOB_NATURAL_W, BLOB_NATURAL_H, PX_PER_WU } from './blobJourneyConfig';
  * scroll-restoration jump could all leave it resolving against stale geometry —
  * hence the S landing mid-paragraph or in the wrong section.
  *
+ * The travel is back — the blob releases from its slot, drifts downward and
+ * fades as the section leaves — but it is a LOCAL travel, expressed inside one
+ * section's own canvas. Nothing is handed between sections and no mesh crosses
+ * the document, so the three approved sections stay independent and the four
+ * forbidden ones mount nothing at all.
+ *
  * This component removes the class of bug rather than patching it. Each
  * instance:
  *   • lives INSIDE its own section, so where it sits on the page is plain
@@ -42,28 +48,21 @@ const Wrap = styled.div`
 /*
  * The canvas is larger than the slot; the blob is not.
  *
- * The mesh is fitted to the SLOT and the extra area is pure headroom, so the
- * blob renders at exactly the approved size while scroll drift, the bevel
- * overhang and the rotation sweep all stay well inside the drawing surface.
- * Without it, a slot whose aspect ratio matches the artwork clips the blob
- * against a dead straight canvas edge the moment it moves.
+ * Horizontally this is just headroom for the bevel overhang and the Z tilt.
+ * Vertically it is what makes the travel possible at all: the blob has to be
+ * able to leave its slot and drift a long way down while it fades, and a canvas
+ * cropped to the slot would cut it against a dead straight edge the moment it
+ * detached. The mesh is fitted to the SLOT either way, so the blob renders at
+ * exactly its approved size and the extra area is pure travel room.
  */
-/*
- * Sized against the worst case, not the average one: the 590 × 780 face needs
- * room for the bevel overhang (~3 %) plus the drift and the Z tilt, which
- * widens a tall silhouette faster than anything else here.
- *
- * Kept at 0.24 after the motion was dialled back, so the headroom is now
- * comfortable rather than tight — the blob renders at exactly the same size
- * either way, since the mesh is fitted to the SLOT, and the only cost is fill
- * rate on a transparent surface a few hundred pixels across.
- */
-const BLEED = 0.24;
-const CANVAS_SCALE = 1 + BLEED * 2;
+const BLEED_X = 0.24;
+const BLEED_Y = 0.55;
+const CANVAS_SCALE_X = 1 + BLEED_X * 2;
+const CANVAS_SCALE_Y = 1 + BLEED_Y * 2;
 
 const CanvasLayer = styled.div`
   position: absolute;
-  inset: -${BLEED * 100}%;
+  inset: -${BLEED_Y * 100}% -${BLEED_X * 100}%;
   z-index: 1;
 `;
 
@@ -76,16 +75,43 @@ const FallbackLayer = styled.div<{ $visible: boolean }>`
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
 `;
 
-/* Sizes the mesh to the canvas exactly as the journey does: camera zoom is
-   PX_PER_WU, so one world unit is 100 px, and the natural 590 × 780 face is
-   fitted to the slot with the same min() rule. Identical framing. */
+/*
+ * How far the blob drifts once it releases, in world units (1 wu = 100 px), and
+ * how much of the section's crossing it stays anchored for.
+ *
+ * SETTLE is expressed in `swing`, which runs -0.5 … 0.5 as the slot centre
+ * crosses the viewport. Inside ±SETTLE the blob is anchored in its slot at full
+ * opacity — that is the "arrived and settled" state. Outside it, the blob
+ * releases downward and fades, reaching zero exactly as the slot reaches the
+ * edge of the viewport, so it is always gone before the section is.
+ */
+const TRAVEL = 1.2;
+const SETTLE = 0.24;
+
+/*
+ * The fade runs ahead of the travel.
+ *
+ * Tying opacity directly to distance put the blob at half strength exactly
+ * where it had drifted onto the body copy below its slot, dragging a very
+ * visible ghost across the text — the overlap the mobile motion rules exist to
+ * prevent. Fading at 1.6× the travel rate means the blob is down to roughly a
+ * tenth by the time it reaches the copy, while the first ~50 px of drift still
+ * happen in plain sight, which is the part that reads as the release.
+ */
+const FADE_LEAD = 1.6;
+
 function FittedBlob({
   animate,
+  active,
   hostRef,
+  layerRef,
   onPainted,
 }: {
   animate: boolean;
+  /** False while paused — off screen, or the menu is open. */
+  active: boolean;
   hostRef: React.RefObject<HTMLDivElement | null>;
+  layerRef: React.RefObject<HTMLDivElement | null>;
   onPainted: () => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -96,16 +122,32 @@ function FittedBlob({
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  // Divided by CANVAS_SCALE because the canvas is bled out past the slot: the
-  // blob keeps exactly the size it would have had if the canvas matched the
-  // slot, and the extra area is headroom for the motion below.
-  const scale =
-    Math.min(size.width / BLOB_NATURAL_W, size.height / BLOB_NATURAL_H) / CANVAS_SCALE;
+  /* Camera zoom is PX_PER_WU, so one world unit is 100 px. The natural
+     590 × 780 face is fitted to the SLOT — the bleed is divided back out — so
+     the blob is framed exactly as the desktop journey frames it. */
+  const scale = Math.min(
+    size.width / CANVAS_SCALE_X / BLOB_NATURAL_W,
+    size.height / CANVAS_SCALE_Y / BLOB_NATURAL_H,
+  );
 
   // Smoothed section-local scroll progress. `null` means "not yet sampled", so
   // the first rendered frame adopts the true value instead of easing into it
   // from a guess — that is what stops a visible settle on mount and on resume.
   const progressRef = useRef<number | null>(null);
+
+  /*
+   * Every resume snaps to the truth instead of easing into it.
+   *
+   * While paused the mesh holds its last transform, and the damping would
+   * otherwise spend ~150 ms sliding from that stale pose to the correct one —
+   * visible as a flash of a nearly-opaque blob in the wrong place when you
+   * scroll back into a section you left mid-fade, or when the menu closes after
+   * the page moved. Discarding the smoothed value forces the next frame to
+   * adopt the live measurement outright.
+   */
+  useEffect(() => {
+    if (active) progressRef.current = null;
+  }, [active]);
 
   useFrame((state, delta) => {
     const mesh = meshRef.current;
@@ -117,6 +159,7 @@ function FittedBlob({
     if (!animate) {
       mesh.rotation.set(-0.05, 0.08, 0.02);
       mesh.position.set(0, 0, 0);
+      if (layerRef.current) layerRef.current.style.opacity = '1';
       return;
     }
 
@@ -169,8 +212,38 @@ function FittedBlob({
     mesh.rotation.x = -0.05 + swing * 0.16 + Math.sin(t * 0.28) * 0.012;
     mesh.rotation.y = 0.08 + swing * 0.62 + Math.sin(t * 0.35) * 0.04;
     mesh.rotation.z = 0.02 - swing * 0.1 + Math.sin(t * 0.22 + 1.2) * 0.016;
-    // Slight counter-drift within the slot — 12 px of parallax at most.
-    mesh.position.y = swing * 0.24;
+
+    /*
+     * Release, travel, fade.
+     *
+     * `away` is 0 while the slot sits in the settle band and ramps to 1 as it
+     * reaches the edge of the viewport. Smoothstepped so the blob holds its
+     * anchored position, then eases into the drift rather than starting to
+     * slide the instant it leaves centre — that easing is what separates a
+     * release from a hard cut.
+     *
+     * The drift is always downward, on both sides of the band. Approaching, the
+     * blob rises out of the drift into its slot and settles; leaving, it falls
+     * back out of it. Same gesture in both directions, so a section reads the
+     * same whether it is scrolled into or out of.
+     */
+    const away = Math.min(1, Math.max(0, (Math.abs(swing) - SETTLE) / (0.5 - SETTLE)));
+    const eased = away * away * (3 - 2 * away);
+
+    // Approved 12 px micro-parallax while settled, plus the travel once released.
+    mesh.position.y = swing * 0.24 - eased * TRAVEL;
+
+    /*
+     * Faded on the canvas element, not the material. The extruded S overlaps
+     * itself in projection once rotated, so a transparent material would show
+     * its own back faces through the front ones. Fading the whole layer treats
+     * the rendered blob as the single flat image it visually is, and is a
+     * compositor-only change — no layout is invalidated, so the per-frame rect
+     * read at the top of this function stays cheap.
+     */
+    if (layerRef.current) {
+      layerRef.current.style.opacity = String(1 - Math.min(1, eased * FADE_LEAD));
+    }
   });
 
   return (
@@ -202,6 +275,7 @@ interface MobileBlobCanvasProps {
 
 export function MobileBlobCanvas({ animate = true, fallback }: MobileBlobCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [painted, setPainted] = useState(false);
   const menuOpen = useMenuOpen();
@@ -269,7 +343,7 @@ export function MobileBlobCanvas({ animate = true, fallback }: MobileBlobCanvasP
       <FallbackLayer $visible={!painted}>{fallback}</FallbackLayer>
 
       <CanvasErrorBoundary onError={clearPainted}>
-        <CanvasLayer>
+        <CanvasLayer ref={layerRef} data-blob-layer="">
         <Canvas
           flat
           orthographic
@@ -288,7 +362,9 @@ export function MobileBlobCanvas({ animate = true, fallback }: MobileBlobCanvasP
           <directionalLight position={[-2, -1, 2]} intensity={0.55} color="#ffc8dc" />
           <FittedBlob
             animate={animate}
+            active={active}
             hostRef={wrapRef}
+            layerRef={layerRef}
             onPainted={markPainted}
           />
         </Canvas>
