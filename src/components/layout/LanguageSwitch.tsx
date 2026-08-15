@@ -4,37 +4,120 @@ import styled from 'styled-components';
 import { colors, fonts, motion, strokes } from '@/styles/tokens';
 import { SHAPE_CLOUD } from '@/components/ui/blobShapes';
 import { useLocale, useMessages } from '@/lib/i18n/LocaleProvider';
-import { localePath, otherLocale, LOCALE_COOKIE } from '@/lib/i18n/config';
+import {
+  localeLabel,
+  localeName,
+  localePath,
+  locales,
+  otherLocale,
+  switchToLabel,
+  LOCALE_COOKIE,
+  type Locale,
+} from '@/lib/i18n/config';
 
 /**
  * The language control.
  *
- * ONE button, showing the language you can move TO — `CZ` on the English site,
- * `ENG` on the Czech one — rather than an EN/CZ pair with an active state. It
- * is a utility control, so it is deliberately quieter than the "Start a project"
- * CTA beside it: thin outline, small tracked label, no fill at rest.
+ * Desktop and mobile deliberately differ, because they sit in different rooms.
  *
- * The silhouette is the SAME organic cloud as the mobile hamburger border
- * (`SHAPE_CLOUD`, from the approved Figma export), not a border-radius pill. Its
- * box is close to the path's native 50.6 × 50 proportion, so the shape is
- * carried over rather than stretched into a different one.
+ *   • DESKTOP (`variant="nav"`) shows BOTH languages — EN CZ — with the active
+ *     one marked. It lives with the navigation links and is set in the same
+ *     type, so it reads as navigation rather than as a second button competing
+ *     with "Start a project".
  *
- * The hover response is the navbar CTA's, at a smaller scale: the pink blooms
- * inside the silhouette while the cream outline dissolves, so no pale ring
- * survives under the fill.
+ *   • MOBILE (`variant="menu"`) keeps the organic cloud showing the language you
+ *     can move TO. In the opened menu it sits beside the primary CTA with room
+ *     around it, where a bordered control is the right weight and a two-item
+ *     text pair would read as a stray fragment.
+ *
+ * Route behaviour is identical in both: EN → `/`, CZ → `/cs`. Never `/en`.
  */
+
+/* ─── Desktop: a pair of language links ─────────────────────────────────── */
+
+const Pair = styled.div`
+  display: flex;
+  align-items: center;
+  /* Paired with the 5 px of horizontal padding on each link below, this lands
+     the visual spacing at ~15 px while keeping each target over 24 px wide. */
+  gap: 10px;
+  flex-shrink: 0;
+`;
+
+/*
+ * Set in the navigation type, one step down in size and tracked out, so the pair
+ * reads as a quiet sibling of the nav links rather than as a control.
+ *
+ * The active locale carries brand pink; the inactive one sits in the muted tone
+ * already used for section labels and the scroll hint, and brightens to cream on
+ * hover. Pink is reserved for "this is the current language", so hover never
+ * borrows it — the two states can't be confused.
+ */
+const LangLink = styled(Link)<{ $active: boolean }>`
+  position: relative;
+  display: inline-block;
+  font-family: ${fonts.body};
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  color: ${({ $active }) => ($active ? colors.pink : colors.muted)};
+  transition: color ${motion.hoverDuration} ${motion.hoverEase};
+  /* Keeps the 13px text on a comfortable pointer target without adding a box:
+     a two-letter label measures ~23 px, which is under the 24 px minimum on its
+     own, so the padding carries it to ~29 x 30. */
+  padding: 6px 5px;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: ${({ $active }) => ($active ? colors.pink : colors.cream)};
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    color: ${({ $active }) => ($active ? colors.pink : colors.cream)};
+  }
+  /* Focus needs a visible mark of its own, since colour alone carries the
+     active state here. */
+  &:focus-visible::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: ${colors.cream};
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+/* Thin muted divider between the two languages — what stops "EN CZ" from
+   reading as one word at this size. */
+const Divider = styled.span`
+  display: block;
+  width: 1px;
+  height: 11px;
+  background-color: ${colors.muted};
+  opacity: 0.4;
+  flex-shrink: 0;
+`;
+
+/* ─── Mobile menu: the organic cloud, unchanged ─────────────────────────── */
 
 const Label = styled.span`
   position: relative;
   z-index: 1;
   font-family: ${fonts.body};
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
   letter-spacing: 0.06em;
   color: ${colors.cream};
-  /* Optical nudge — the cloud rises toward its middle, so a geometrically
-     centred label reads as sitting high. Matches BlobCta. */
   transform: translateY(1px);
   transition: color 520ms ${motion.hoverEase};
 `;
@@ -53,8 +136,6 @@ const Outline = styled.span`
   }
 `;
 
-/* Blooms in from slightly oversized, exactly like the CTA fill layer, so the
-   colour resolves in place instead of sweeping across a moving edge. */
 const Fill = styled.span`
   position: absolute;
   inset: 0;
@@ -75,71 +156,39 @@ const Shape = styled.svg`
   overflow: visible;
 `;
 
-const SwitchLink = styled(Link)`
+const MenuSwitchLink = styled(Link)`
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 54px;
-  height: 46px;
+  width: 62px;
+  height: 54px;
   box-sizing: border-box;
   text-decoration: none;
   cursor: pointer;
 
-  /* 769–1100 px: the row is at its tightest here, so the control gives back a
-     few pixels rather than pushing the CTA toward the edge. */
-  @media (min-width: 769px) and (max-width: 1100px) {
-    width: 46px;
-    height: 40px;
-
-    ${Label} {
-      font-size: 11px;
-      letter-spacing: 0.04em;
-    }
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    &:hover ${Fill} {
-      opacity: 1;
-      transform: scale(1);
-    }
-    &:hover ${Outline} path {
-      stroke-opacity: 0;
-    }
-    &:hover ${Label} {
-      color: ${colors.darkGreen};
-    }
-  }
-
-  &:focus-visible {
-    outline: none;
-  }
+  &:hover ${Fill},
   &:focus-visible ${Fill} {
     opacity: 1;
     transform: scale(1);
   }
+  &:hover ${Outline} path,
   &:focus-visible ${Outline} path {
     stroke-opacity: 0;
   }
+  &:hover ${Label},
   &:focus-visible ${Label} {
     color: ${colors.darkGreen};
+  }
+  &:focus-visible {
+    outline: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
     ${Fill}, ${Label}, ${Outline} path {
       transition: none;
     }
-  }
-`;
-
-/* Larger inside the opened mobile menu, where it sits next to a md-size CTA. */
-const MenuSwitchLink = styled(SwitchLink)`
-  width: 62px;
-  height: 54px;
-
-  ${Label} {
-    font-size: 13px;
   }
 `;
 
@@ -150,56 +199,79 @@ interface LanguageSwitchProps {
   onNavigate?: () => void;
 }
 
+/**
+ * Records an explicit choice for one year.
+ *
+ * Nothing redirects on it: `/` always renders English and `/cs` always renders
+ * Czech, so a shared link can never open in a language the recipient did not
+ * ask for. The cookie exists so the preference is known, not so it can
+ * override a URL.
+ */
+function rememberLocale(target: Locale) {
+  document.cookie = `${LOCALE_COOKIE}=${target}; path=/; max-age=31536000; samesite=lax`;
+}
+
 export function LanguageSwitch({ variant = 'nav', className, onNavigate }: LanguageSwitchProps) {
   const locale = useLocale();
   const t = useMessages();
-  const target = otherLocale(locale);
-  const href = localePath(target);
 
-  /*
-   * Records an explicit choice for one year.
-   *
-   * Nothing redirects on it: `/` always renders English and `/cs` always renders
-   * Czech, so a shared link can never open in a language the recipient did not
-   * ask for. The cookie exists so the preference is known, not so it can
-   * override a URL.
-   */
-  const remember = () => {
-    document.cookie = `${LOCALE_COOKIE}=${target}; path=/; max-age=31536000; samesite=lax`;
-    onNavigate?.();
-  };
+  /* ── Mobile menu — organic cloud pointing at the other language ── */
+  if (variant === 'menu') {
+    const target = otherLocale(locale);
+    return (
+      <MenuSwitchLink
+        href={localePath(target)}
+        className={className}
+        onClick={() => {
+          rememberLocale(target);
+          onNavigate?.();
+        }}
+        hrefLang={target}
+        lang={target}
+        aria-label={t.nav.switchAriaLabel}
+      >
+        <Outline aria-hidden="true">
+          <Shape viewBox={SHAPE_CLOUD.viewBox} preserveAspectRatio="none" fill="none">
+            <path
+              d={SHAPE_CLOUD.d}
+              fill="none"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </Shape>
+        </Outline>
+        <Fill aria-hidden="true">
+          <Shape viewBox={SHAPE_CLOUD.viewBox} preserveAspectRatio="none" fill="none">
+            <path d={SHAPE_CLOUD.d} fill={colors.pink} />
+          </Shape>
+        </Fill>
+        <Label>{localeLabel[target]}</Label>
+      </MenuSwitchLink>
+    );
+  }
 
-  const Component = variant === 'menu' ? MenuSwitchLink : SwitchLink;
-
+  /* ── Desktop — both languages, active one marked ── */
   return (
-    <Component
-      href={href}
-      className={className}
-      onClick={remember}
-      hrefLang={target}
-      /* Announced in the language being offered, so it reads correctly to a
-         speaker of that language — `lang` tells the screen reader how to say it. */
-      lang={target}
-      aria-label={t.nav.switchAriaLabel}
-    >
-      <Outline aria-hidden="true">
-        <Shape viewBox={SHAPE_CLOUD.viewBox} preserveAspectRatio="none" fill="none">
-          <path
-            d={SHAPE_CLOUD.d}
-            fill="none"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        </Shape>
-      </Outline>
-
-      <Fill aria-hidden="true">
-        <Shape viewBox={SHAPE_CLOUD.viewBox} preserveAspectRatio="none" fill="none">
-          <path d={SHAPE_CLOUD.d} fill={colors.pink} />
-        </Shape>
-      </Fill>
-
-      <Label>{t.nav.switchLabel}</Label>
-    </Component>
+    <Pair className={className} role="group" aria-label={t.nav.languageGroupLabel}>
+      {locales.map((l, i) => {
+        const active = l === locale;
+        return (
+          <span key={l} style={{ display: 'contents' }}>
+            {i > 0 && <Divider aria-hidden="true" />}
+            <LangLink
+              href={localePath(l)}
+              $active={active}
+              onClick={() => rememberLocale(l)}
+              hrefLang={l}
+              lang={l}
+              aria-current={active ? 'page' : undefined}
+              aria-label={active ? localeName[l] : switchToLabel[l]}
+            >
+              {localeLabel[l]}
+            </LangLink>
+          </span>
+        );
+      })}
+    </Pair>
   );
 }

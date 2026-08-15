@@ -33,7 +33,7 @@ export const cs: Messages = {
     closeMenu: 'Zavřít menu',
     dialogLabel: 'Navigace',
     mainNavLabel: 'Hlavní navigace',
-    switchLabel: 'ENG',
+    languageGroupLabel: 'Jazyk',
     switchAriaLabel: 'Switch to English',
   },
 

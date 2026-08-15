@@ -54,6 +54,31 @@ export const hreflang: Record<Locale, string> = {
   cs: 'cs',
 };
 
+/**
+ * Two-letter label for the switcher. Locale-independent by design — these read
+ * the same in either language, which is what lets the desktop control show both
+ * at once without a dictionary lookup.
+ */
+export const localeLabel: Record<Locale, string> = {
+  en: 'EN',
+  cs: 'CZ',
+};
+
+/** Full language name, in its own language — used to announce the active one. */
+export const localeName: Record<Locale, string> = {
+  en: 'English',
+  cs: 'Čeština',
+};
+
+/**
+ * "Switch to X", written in the language being switched TO, so a speaker of that
+ * language hears it correctly (the link also carries a matching `lang`).
+ */
+export const switchToLabel: Record<Locale, string> = {
+  en: 'Switch to English',
+  cs: 'Přepnout do češtiny',
+};
+
 /** Open Graph `og:locale` value. */
 export const ogLocale: Record<Locale, string> = {
   en: 'en_US',

@@ -30,8 +30,7 @@ export const en = {
     closeMenu: 'Close menu',
     dialogLabel: 'Navigation',
     mainNavLabel: 'Main navigation',
-    /* Shown on the switcher: the language the visitor can move TO. */
-    switchLabel: 'CZ',
+    languageGroupLabel: 'Language',
     /* Written in the TARGET language, so it reads to a speaker of that language. */
     switchAriaLabel: 'Přepnout do češtiny',
   },

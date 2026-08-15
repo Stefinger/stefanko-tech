@@ -229,7 +229,7 @@ const NavLinks = styled.nav`
   align-items: center;
   gap: 8px;
   margin-left: auto;
-  margin-right: 24px;
+  margin-right: 0;
 
   ${media.mobile} {
     display: none;
@@ -243,7 +243,7 @@ const NavLinks = styled.nav`
    */
   ${media.tablet} {
     gap: 0;
-    margin-right: 6px;
+    margin-right: 0;
 
     a {
       padding-left: 11px;
@@ -252,17 +252,28 @@ const NavLinks = styled.nav`
   }
 `;
 
-/* Sits between the links and the primary CTA, per the approved navbar order. */
+/*
+ * Language pair — grouped with the navigation, not with the CTA.
+ *
+ * The gaps are deliberately asymmetric. It sits close to the links (they are
+ * the same kind of thing: places you can go) and far from "Start a project",
+ * which keeps the CTA reading as the single strongest element on the right.
+ * Previously it was 12 px from the CTA and 24 px from the links — the reverse —
+ * which is what made the right-hand side feel crowded and gave the language
+ * control more weight than it should carry.
+ */
 const LangWrap = styled.div`
   flex-shrink: 0;
-  margin-right: 12px;
+  margin-left: 10px;
+  margin-right: 38px;
 
   ${media.mobile} {
     display: none;
   }
 
   ${media.tablet} {
-    margin-right: 6px;
+    margin-left: 4px;
+    margin-right: 20px;
   }
 `;
 
