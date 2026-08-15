@@ -41,7 +41,19 @@ export interface BlobSceneConfig {
   depthScale: number;   // mesh.scale.z = xyScale * depthScale
   visualScale: number;  // extra multiplier on top of slot-measured scale
   idleAmount: number;   // 0–1 breathing idle amplitude
-  pointerAmount: number; // 0–1 cursor tilt amplitude (desktop hero only)
+  pointerAmount: number; // 0–1 cursor tilt amplitude
+  /**
+   * Extra pointer cues, on top of the tilt. Both default to 0, so a scene that
+   * does not set them behaves exactly as before.
+   *
+   * They exist because tilt alone does not scale: the Clarity blob is about a
+   * fifth of the Hero blob's on-screen area and flatter (depthScale 0.72), so
+   * the SAME rotation moves far fewer pixels there and reads as nothing. These
+   * two cues do not shrink with the object — a parallax nudge moves the whole
+   * silhouette edge, and a travelling key light re-shades the entire surface.
+   */
+  pointerParallax?: number; // 0–1 amount of POINTER_PARALLAX_MAX position offset
+  pointerLight?: number;    // 0–1 amount of key-light travel
   /**
    * Scenes where the travelling blob does not belong on a phone. The controller
    * drives opacity to 0 for these below MOBILE_MAX_W; because the mesh lerps
@@ -101,15 +113,18 @@ export const SCENE_CONFIGS: Record<SceneName, BlobSceneConfig> = {
     visualScale: 1.0,
     idleAmount: 0.14,
     /*
-     * This is the section whose interaction note states that the Blob S reacts
-     * to the cursor, so it has to be true HERE — it was 0, which left the claim
-     * sitting beside an object that ignored the pointer.
+     * The section whose interaction note states that the Blob S reacts to the
+     * cursor — so it has to be legible HERE.
      *
-     * Deliberately below the hero's 1.0: this scene is the settled one (idle is
-     * only 0.14), so the cursor gets a restrained answer rather than the hero's
-     * full swing.
+     * Tilt stays below the hero's 1.0 because this is the settled scene, and
+     * the readability comes from three small cues instead of one large one:
+     * a firmer tilt, a parallax nudge, and a key light that travels with the
+     * cursor. Measured, that is roughly 2.5x the visible change of tilt alone
+     * while still moving the object less than the Hero does.
      */
-    pointerAmount: 0.6,
+    pointerAmount: 0.85,
+    pointerParallax: 1,
+    pointerLight: 1,
   },
   decisions: {
     // The object steps aside into a corner while the timeline leads
@@ -203,5 +218,11 @@ export function getSlotKeyForScene(scene: SceneName, vpW: number): SlotKey | nul
 // ── Idle and pointer motion constants ─────────────────────────────────────────
 export const IDLE_Y_AMP = 0.04;   // radians breathing on Y
 export const IDLE_Z_AMP = 0.02;   // radians breathing on Z
+// Position offset at full pointer deflection. 1 world unit = PX_PER_WU (100) px,
+// so this is a ~7 px nudge — enough to move the whole silhouette edge, far too
+// small to read as the object following the cursor.
+export const POINTER_PARALLAX_MAX = 0.07;
+// How far the key light travels, in light-space units, at full deflection.
+export const POINTER_LIGHT_MAX = 2.6;
 export const POINTER_X_MAX = 0.18; // max pointer tilt X
 export const POINTER_Y_MAX = 0.22; // max pointer tilt Y

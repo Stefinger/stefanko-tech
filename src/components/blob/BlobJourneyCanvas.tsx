@@ -1,5 +1,6 @@
 'use client';
 import React, { useRef, useState, useCallback, Component } from 'react';
+import * as THREE from 'three';
 import { Canvas, useFrame } from '@react-three/fiber';
 import type { RootState } from '@react-three/fiber';
 import styled from 'styled-components';
@@ -19,7 +20,12 @@ setThreeConsole((type, message, ...params) => {
   (console[type as 'warn' | 'log' | 'error'] as (...a: unknown[]) => void)(message, ...params);
 });
 import { BlobJourneyMesh } from './BlobJourneyMesh';
-import { PX_PER_WU } from './blobJourneyConfig';
+import {
+  PX_PER_WU,
+  POINTER_LIGHT_MAX,
+  SCENE_CONFIGS,
+} from './blobJourneyConfig';
+import type { BlobJourneyStore } from './BlobJourneyContext';
 
 // ── Fixed viewport canvas — sits above section backgrounds, below text ────────
 // z-index: 20 — above filter stacking contexts (blob slots at z-index: auto)
@@ -32,6 +38,46 @@ const CanvasWrap = styled.div`
   pointer-events: none;
   z-index: 20;
 `;
+
+/**
+ * Key light that travels with the cursor.
+ *
+ * The third pointer cue, and the one that does the most work on a small blob:
+ * rotating a 230 px object moves few pixels, but sweeping the key light
+ * re-shades its whole visible surface, so the form reads as turning under a
+ * light rather than as a shape being nudged.
+ *
+ * It only moves for scenes that set `pointerLight` — every other scene, the
+ * Hero included, keeps the fixed studio position it was lit with. The offset is
+ * eased rather than tracked, so the highlight drifts and settles.
+ */
+function PointerKeyLight({
+  storeRef,
+  enablePointer,
+}: {
+  storeRef: React.RefObject<BlobJourneyStore>;
+  enablePointer: boolean;
+}) {
+  const ref = useRef<THREE.DirectionalLight>(null);
+  const cur = useRef({ x: 0, y: 0 });
+
+  useFrame((_, delta) => {
+    const light = ref.current;
+    if (!light) return;
+    const store = storeRef.current;
+    const amount = enablePointer
+      ? (SCENE_CONFIGS[store.targetScene].pointerLight ?? 0)
+      : 0;
+    const tx = store.pointer.x * POINTER_LIGHT_MAX * amount;
+    const ty = store.pointer.y * POINTER_LIGHT_MAX * amount;
+    const spd = Math.min(delta * 3.2, 0.3);
+    cur.current.x += (tx - cur.current.x) * spd;
+    cur.current.y += (ty - cur.current.y) * spd;
+    light.position.set(3 + cur.current.x, 5 + cur.current.y, 4);
+  });
+
+  return <directionalLight ref={ref} position={[3, 5, 4]} intensity={1.25} color="#ffffff" />;
+}
 
 // ── First-frame signal — fires handleReady once WebGL renders a valid frame ──
 function FirstFrameSignal({ onReady }: { onReady: () => void }) {
@@ -154,7 +200,7 @@ export function BlobJourneyCanvas({ reducedMotion }: BlobJourneyCanvasProps) {
            * No emissive. No bloom.
            */}
           <ambientLight intensity={1.55} />
-          <directionalLight position={[3, 5, 4]}   intensity={1.25} color="#ffffff" />
+          <PointerKeyLight storeRef={storeRef} enablePointer={enablePointer} />
           <directionalLight position={[-2, -1, 2]} intensity={0.55} color="#ffc8dc" />
 
           <BlobJourneyMesh storeRef={storeRef} enablePointer={enablePointer} />

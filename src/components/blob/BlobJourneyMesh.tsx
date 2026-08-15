@@ -12,6 +12,7 @@ import {
   IDLE_Z_AMP,
   POINTER_X_MAX,
   POINTER_Y_MAX,
+  POINTER_PARALLAX_MAX,
 } from './blobJourneyConfig';
 
 // ── Geometry builder ──────────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ const cur = {
   xyScale: 1, depthScale: 1,
   rotX: 0, rotY: 0, rotZ: 0,
   opacity: 0,
-  idleAmount: 0, pointerAmount: 0,
+  idleAmount: 0, pointerAmount: 0, pointerParallax: 0,
 };
 
 function resetCur() {
@@ -73,7 +74,7 @@ function resetCur() {
   cur.xyScale = 1; cur.depthScale = 1;
   cur.rotX = 0; cur.rotY = 0; cur.rotZ = 0;
   cur.opacity = 0;
-  cur.idleAmount = 0; cur.pointerAmount = 0;
+  cur.idleAmount = 0; cur.pointerAmount = 0; cur.pointerParallax = 0;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -149,6 +150,7 @@ export function BlobJourneyMesh({ storeRef, enablePointer }: BlobJourneyMeshProp
       cur.rotZ       = 0;
       cur.idleAmount    = 0;
       cur.pointerAmount = 0;
+      cur.pointerParallax = 0;
 
       // 3. Match the scene's own opacity — the static SVG fallback in each slot
       //    renders at the same value, so the swap is invisible in every scene,
@@ -209,6 +211,11 @@ export function BlobJourneyMesh({ storeRef, enablePointer }: BlobJourneyMeshProp
       enablePointer ? cfg.pointerAmount : 0,
       spd,
     );
+    cur.pointerParallax = THREE.MathUtils.lerp(
+      cur.pointerParallax,
+      enablePointer ? (cfg.pointerParallax ?? 0) : 0,
+      spd,
+    );
 
     // Opacity
     cur.opacity = THREE.MathUtils.lerp(cur.opacity, store.targetOpacity, spd);
@@ -217,13 +224,25 @@ export function BlobJourneyMesh({ storeRef, enablePointer }: BlobJourneyMeshProp
     const idleY = Math.sin(t * 0.35) * IDLE_Y_AMP * cur.idleAmount;
     const idleZ = Math.sin(t * 0.22 + 1.2) * IDLE_Z_AMP * cur.idleAmount;
 
-    // Pointer tilt (desktop hero only)
+    // Pointer tilt
     const pTiltX = enablePointer ? -store.pointer.y * POINTER_X_MAX * cur.pointerAmount : 0;
     const pTiltY = enablePointer ?  store.pointer.x * POINTER_Y_MAX * cur.pointerAmount : 0;
 
+    /*
+     * Parallax nudge — a few pixels, only for scenes that opt in.
+     *
+     * It earns its place because it does not shrink with the object: shifting
+     * the blob moves its ENTIRE silhouette edge against the background, which
+     * is a high-contrast change the eye catches even on the small Clarity blob,
+     * where a rotation of the same magnitude barely registers. It lerps like
+     * everything else, so releasing the cursor settles it back rather than
+     * snapping.
+     */
+    const pPar = enablePointer ? POINTER_PARALLAX_MAX * cur.pointerParallax : 0;
+
     // Apply
-    mesh.position.x = cur.x;
-    mesh.position.y = cur.y;
+    mesh.position.x = cur.x + store.pointer.x * pPar;
+    mesh.position.y = cur.y + store.pointer.y * pPar;
     mesh.position.z = 0;
 
     mesh.scale.x = cur.xyScale;
