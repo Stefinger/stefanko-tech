@@ -7,6 +7,7 @@ import { colors, fonts, media } from '@/styles/tokens';
 import { SiteContainer } from '@/components/layout/SiteContainer';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
 
 /* ─── Section shell — full-width background, vertical spacing only ──────── */
 const FooterEl = styled.footer`
@@ -91,6 +92,7 @@ const FooterTagline = styled.p`
 export function Footer() {
   const footerRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+  const t = useMessages();
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -130,7 +132,7 @@ export function Footer() {
             <FooterBlobSWrap>
               <Image
                 src="/assets/blob-s-footer-logo.svg"
-                alt="Stefanko.tech"
+                alt={t.footer.logoAlt}
                 fill
                 unoptimized
                 style={{ objectFit: 'contain' }}
@@ -140,9 +142,7 @@ export function Footer() {
           </FooterLeft>
 
           {/* Mobile renders as two intentional lines via max-width constraint */}
-          <FooterTagline data-ft-tagline="">
-            FROM IDEA TO PRODUCT.&nbsp; /&nbsp; BUILD IN PUBLIC.
-          </FooterTagline>
+          <FooterTagline data-ft-tagline="">{t.footer.tagline}</FooterTagline>
         </FooterRow>
       </SiteContainer>
     </FooterEl>

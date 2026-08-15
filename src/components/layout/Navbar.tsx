@@ -1,11 +1,15 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import styled, { css } from 'styled-components';
 import { colors, fonts, media, motion } from '@/styles/tokens';
 import { setMenuOpen } from '@/lib/menuOpenState';
 import { BlobCta } from '@/components/ui/BlobCta';
-import { SHAPE_NAV } from '@/components/ui/blobShapes';
+import { LanguageSwitch } from '@/components/layout/LanguageSwitch';
+import { SHAPE_NAV, SHAPE_CLOUD } from '@/components/ui/blobShapes';
+import { useLocale, useMessages } from '@/lib/i18n/LocaleProvider';
+import { localePath } from '@/lib/i18n/config';
 
 /* ─── Wave SVG notes ────────────────────────────────────────────────────────
    The wave is always rendered and is always part of the navbar — it is never
@@ -172,7 +176,7 @@ const NavContentRow = styled.div`
   }
 `;
 
-const LogoGroup = styled.a`
+const LogoGroup = styled(Link)`
   display: flex;
   align-items: center;
   gap: 10px;
@@ -231,9 +235,34 @@ const NavLinks = styled.nav`
     display: none;
   }
 
+  /*
+   * 769–1100 px is the tightest the row ever gets: four links, the language
+   * control and the CTA all have to fit between the logo and the gutter, in
+   * whichever language is longer. The links give back their horizontal padding
+   * here — the hover cloud shrinks with them, so the interaction is unchanged.
+   */
   ${media.tablet} {
     gap: 0;
-    margin-right: 10px;
+    margin-right: 6px;
+
+    a {
+      padding-left: 11px;
+      padding-right: 11px;
+    }
+  }
+`;
+
+/* Sits between the links and the primary CTA, per the approved navbar order. */
+const LangWrap = styled.div`
+  flex-shrink: 0;
+  margin-right: 12px;
+
+  ${media.mobile} {
+    display: none;
+  }
+
+  ${media.tablet} {
+    margin-right: 6px;
   }
 `;
 
@@ -550,30 +579,43 @@ const MenuCtaWrap = styled.div`
   padding-bottom: 16px;
 `;
 
-/* Content-width, left-aligned — matches the Hero CTA proportions instead of
-   stretching a pill across the full width of the open menu. */
+/*
+ * Content-width, left-aligned — matches the Hero CTA proportions instead of
+ * stretching a pill across the full width of the open menu.
+ *
+ * The language control shares this row, sitting beside the primary action: it
+ * is the other thing you can DO from the open menu, and putting it here keeps
+ * the closed navbar uncluttered while never letting it compete with the CTA.
+ */
 const MenuCtaRow = styled.div`
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
 `;
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
-/* Nav items, and the organic silhouette used for the hover cloud behind them. */
+/*
+ * Nav items.
+ *
+ * The scroll target is structural and the label is a translation, so the two
+ * are kept apart: `id` is the element the link scrolls to, `key` names the
+ * label in the locale dictionary. Both locales therefore drive exactly the same
+ * anchors.
+ */
 const NAV_ITEMS = [
-  { id: 'proof', label: 'Work' },
-  { id: 'build-in-public', label: 'Build in Public' },
-  { id: 'about', label: 'About' },
-  { id: 'contact', label: 'Contact' },
+  { id: 'proof', key: 'work' },
+  { id: 'build-in-public', key: 'buildInPublic' },
+  { id: 'about', key: 'about' },
+  { id: 'contact', key: 'contact' },
 ] as const;
 
 const NAV_CLOUD = SHAPE_NAV;
 
-/* Organic hamburger silhouette — same geometry as hamburger-blob-border.svg,
-   inlined so the open state can render it as a fill rather than an outline. */
-const HAMBURGER_BLOB_D =
-  'M13.4035 43.0382C6.7659 42.4708 2.2658 36.6838 4.06584 30.6698C1.36577 25.904 4.06584 20.0035 9.12845 18.4149C8.00343 11.947 13.6286 6.61383 19.7037 7.86202C23.1913 2.52886 31.629 2.7558 34.779 8.31591C40.4042 6.38689 46.0293 10.9258 45.3543 16.8263C50.6419 19.3226 51.6544 26.9252 47.1543 30.5563C48.1668 37.1377 42.3167 42.6978 36.0166 41.6765C31.629 47.1232 23.0788 47.4636 18.3537 42.4708C16.7786 43.0382 15.0911 43.1517 13.4035 43.0382Z';
+/* Organic hamburger silhouette — shared with the language switcher, so both
+   small utility controls use one shape rather than two similar ones. */
+const HAMBURGER_BLOB_D = SHAPE_CLOUD.d;
 
 /* Wave path data — Figma node 104:3, desktop and mobile variants. */
 const DESKTOP_WAVE_D =
@@ -588,6 +630,8 @@ const MOBILE_PINK_WAVE_D =
   'M0 0H390V92C365 74 348 121.7 321 125.6C291 129.4 278 80.4 250 86.9C220 94.6 209 132 182 129.4C153 126.8 142 79.2 113 84.3C84 89.5 71 130.7 43 128.1C24 126.8 14 106.2 0 112.7V0Z';
 
 export function Navbar() {
+  const locale = useLocale();
+  const t = useMessages();
   const [isOpen, setIsOpen] = useState(false);
   // Drives the pink under-wave. False at the very top of the page so the navbar
   // merges cleanly into the dark-green hero, as approved in Direction C.
@@ -790,11 +834,12 @@ export function Navbar() {
           </NavWaveBg>
 
           <NavContentRow>
-            <LogoGroup href="/">
+            {/* Logo returns to the CURRENT locale's homepage, never to English. */}
+            <LogoGroup href={localePath(locale)}>
               <NavBlobSWrap data-nav-logo-blob="">
                 <Image
                   src="/assets/blob-s-nav.svg"
-                  alt="Stefanko.tech"
+                  alt={t.nav.logoAlt}
                   fill
                   unoptimized
                   style={{ objectFit: 'contain' }}
@@ -817,10 +862,14 @@ export function Navbar() {
                       <path d={NAV_CLOUD.d} fill={colors.pink} />
                     </svg>
                   </NavLinkCloud>
-                  <span className="nav-link-text">{item.label}</span>
+                  <span className="nav-link-text">{t.nav.items[item.key]}</span>
                 </NavLink>
               ))}
             </NavLinks>
+
+            <LangWrap>
+              <LanguageSwitch />
+            </LangWrap>
 
             <NavCtaWrap>
               <BlobCta
@@ -829,7 +878,7 @@ export function Navbar() {
                 size="sm"
                 onClick={handleNavClick('contact')}
               >
-                Start a project
+                {t.nav.cta}
               </BlobCta>
             </NavCtaWrap>
 
@@ -837,7 +886,7 @@ export function Navbar() {
               ref={hamburgerRef}
               $open={isOpen}
               onClick={isOpen ? closeMenu : openMenu}
-              aria-label={isOpen ? 'Close menu' : 'Open menu'}
+              aria-label={isOpen ? t.nav.closeMenu : t.nav.openMenu}
               aria-expanded={isOpen}
               aria-controls="mobile-menu"
             >
@@ -890,17 +939,20 @@ export function Navbar() {
         $open={isOpen}
         role="dialog"
         aria-modal="true"
-        aria-label="Navigation"
+        aria-label={t.nav.dialogLabel}
       >
-        <MenuNavList aria-label="Main navigation">
-          {NAV_ITEMS.map(item => (
-            <MenuNavLink key={item.id} href={`#${item.id}`} onClick={menuNavigate(item.id)}>
-              <MenuNavLabel>
-                {item.label}
-                <MenuNavFill aria-hidden="true">{item.label}</MenuNavFill>
-              </MenuNavLabel>
-            </MenuNavLink>
-          ))}
+        <MenuNavList aria-label={t.nav.mainNavLabel}>
+          {NAV_ITEMS.map(item => {
+            const label = t.nav.items[item.key];
+            return (
+              <MenuNavLink key={item.id} href={`#${item.id}`} onClick={menuNavigate(item.id)}>
+                <MenuNavLabel>
+                  {label}
+                  <MenuNavFill aria-hidden="true">{label}</MenuNavFill>
+                </MenuNavLabel>
+              </MenuNavLink>
+            );
+          })}
         </MenuNavList>
 
         <MenuCtaWrap>
@@ -912,8 +964,12 @@ export function Navbar() {
               size="md"
               onClick={menuNavigate('contact')}
             >
-              Start a project
+              {t.nav.cta}
             </BlobCta>
+
+            {/* Closing the menu first stops the scroll lock from surviving the
+                route change to the other locale. */}
+            <LanguageSwitch variant="menu" onNavigate={closeMenu} />
           </MenuCtaRow>
         </MenuCtaWrap>
       </MobileMenuOverlay>

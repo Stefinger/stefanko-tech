@@ -9,6 +9,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap, ScrollTrigger } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
 
 /* ─── Section shell ────────────────────────────────────────────────────────── */
 /*
@@ -312,12 +313,16 @@ const MobileTagline = styled.p`
  * desktopLeftFrac / desktopTopFrac are 0–1 fractions of the stage's free space.
  * They preserve the approved Figma arrangement (relative spread and rhythm)
  * while making it fully resolution-independent.
+ *
+ * The question TEXT is not here — it comes from the locale dictionary by index,
+ * so a cloud keeps its artwork, tilt, placement and per-cloud mobile type size
+ * whichever language is rendering. The Czech questions are close enough in
+ * length to the English ones that the tuned sizes hold for both.
  */
 const questions = [
   {
     src: '/assets/question-0.svg',
     srcMobile: '/assets/question-0-mobile.svg',
-    label: 'WHO?',
     labelColor: colors.cream,
     rotation: -9,
     desktopLeftFrac: 0.14,
@@ -329,7 +334,6 @@ const questions = [
   {
     src: '/assets/question-1.svg',
     srcMobile: '/assets/question-1-mobile.svg',
-    label: 'WHY?',
     labelColor: colors.darkGreen,
     rotation: 6,
     desktopLeftFrac: 0.89,
@@ -341,7 +345,6 @@ const questions = [
   {
     src: '/assets/question-2.svg',
     srcMobile: '/assets/question-2-mobile.svg',
-    label: 'WHAT?',
     labelColor: colors.cream,
     rotation: 12,
     desktopLeftFrac: 0,
@@ -353,7 +356,6 @@ const questions = [
   {
     src: '/assets/question-3.svg',
     srcMobile: '/assets/question-3-mobile.svg',
-    label: 'FOR WHOM?',
     labelColor: colors.cream,
     rotation: -17,
     desktopLeftFrac: 0.72,
@@ -365,7 +367,6 @@ const questions = [
   {
     src: '/assets/question-4.svg',
     srcMobile: '/assets/question-4-mobile.svg',
-    label: 'WHY NOW?',
     labelColor: colors.darkGreen,
     rotation: -5,
     desktopLeftFrac: 0.04,
@@ -377,7 +378,6 @@ const questions = [
   {
     src: '/assets/question-5.svg',
     srcMobile: '/assets/question-5-mobile.svg',
-    label: 'WHAT MATTERS?',
     labelColor: colors.cream,
     rotation: 9,
     desktopLeftFrac: 0.75,
@@ -413,6 +413,7 @@ const blobTiltDur    = [4.4, 5.1, 4.7, 5.4, 4.1, 4.9] as const;
 export function UncertaintySection() {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+  const t = useMessages();
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -587,7 +588,7 @@ export function UncertaintySection() {
                     />
                   </BlobImgWrap>
                   <QuestionLabel $color={q.labelColor} $mobileFontSize={q.mobileFontSize}>
-                    {q.label}
+                    {t.uncertainty.questions[i]}
                   </QuestionLabel>
                 </CloudTilt>
               </DesktopBlobWrap>
@@ -599,18 +600,16 @@ export function UncertaintySection() {
       <Content>
         <SiteContainer>
           <LabelWrap data-u-label="">
-            <SectionLabel color={colors.darkGreen}>{`02  /  UNCERTAINTY`}</SectionLabel>
+            <SectionLabel color={colors.darkGreen}>{t.uncertainty.label}</SectionLabel>
           </LabelWrap>
 
           <Headline data-u-headline="">
-            <HeadlineLine>AN IDEA IS ONLY</HeadlineLine>
-            <HeadlineLine>THE START.</HeadlineLine>
+            {t.uncertainty.headline.map(line => (
+              <HeadlineLine key={line}>{line}</HeadlineLine>
+            ))}
           </Headline>
 
-          <BodyText data-u-body="">
-            The first job is not to build. It is to understand
-            {' '}what should be built.
-          </BodyText>
+          <BodyText data-u-body="">{t.uncertainty.body.join(' ')}</BodyText>
 
           {/* Mobile clouds — bounded stage below body text, hidden on desktop */}
           <MobileQuestionStage aria-hidden="true">
@@ -632,14 +631,14 @@ export function UncertaintySection() {
                     />
                   </BlobImgWrap>
                   <QuestionLabel $color={q.labelColor} $mobileFontSize={q.mobileFontSize}>
-                    {q.label}
+                    {t.uncertainty.questions[i]}
                   </QuestionLabel>
                 </CloudTilt>
               </MobileBlobItem>
             ))}
           </MobileQuestionStage>
 
-          <MobileTagline>QUESTIONS BEFORE CODE.</MobileTagline>
+          <MobileTagline>{t.uncertainty.mobileTagline}</MobileTagline>
         </SiteContainer>
       </Content>
     </Section>

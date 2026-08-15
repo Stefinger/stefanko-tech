@@ -9,6 +9,8 @@ import { BlobCta } from '@/components/ui/BlobCta';
 import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
+import { joinLines } from '@/lib/i18n/lines';
 
 const DesktopBr = styled.br`
   ${media.mobile} {
@@ -207,6 +209,7 @@ const CtaBlock = styled.div`
 export function FinalCtaSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+  const t = useMessages();
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -244,21 +247,18 @@ export function FinalCtaSection() {
     <Section id="contact" ref={sectionRef} data-scene-section="final">
       <SiteContainer>
         <LabelWrap data-f-label="">
-          <SectionLabel>{`07  /  THE NEXT IDEA`}</SectionLabel>
+          <SectionLabel>{t.finalCta.label}</SectionLabel>
         </LabelWrap>
 
         <FinalGrid>
           <TextColumn>
             <Headline data-f-headline="">
-              <HeadlineLine>HAVE AN IDEA</HeadlineLine>
-              <HeadlineLine>WORTH BUILDING?</HeadlineLine>
+              {t.finalCta.headline.map(line => (
+                <HeadlineLine key={line}>{line}</HeadlineLine>
+              ))}
             </Headline>
 
-            <BodyText data-f-body="">
-              Bring the idea, problem or opportunity.{' '}
-              <DesktopBr />
-              Let&apos;s find out what product should exist.
-            </BodyText>
+            <BodyText data-f-body="">{joinLines(t.finalCta.body, DesktopBr)}</BodyText>
           </TextColumn>
 
           {/* Blob S slot — canvas renders above via z-index: 20 > filter: auto */}
@@ -271,11 +271,11 @@ export function FinalCtaSection() {
 
         <CtaBlock data-f-cta="">
           <BlobCta href="mailto:jan@stefanko.tech" variant="primary" size="lg">
-            Start a conversation
+            {t.finalCta.ctaPrimary}
           </BlobCta>
 
           <BlobCta href="#proof" variant="outlineLight" size="lg">
-            Explore selected work&nbsp;↗
+            {t.finalCta.ctaSecondary}
           </BlobCta>
         </CtaBlock>
       </SiteContainer>

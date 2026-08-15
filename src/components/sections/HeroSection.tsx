@@ -9,6 +9,8 @@ import { BlobCta } from '@/components/ui/BlobCta';
 import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
+import { joinLines } from '@/lib/i18n/lines';
 
 /* ─── Section shell ──────────────────────────────────────────────────────────
  *
@@ -256,6 +258,7 @@ const ScrollHint = styled.p`
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+  const t = useMessages();
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -314,12 +317,13 @@ export function HeroSection() {
         <HeroGrid>
           <TextColumn>
             <LabelWrap data-hero-label="">
-              <SectionLabel>{`01  /  RAW IDEA`}</SectionLabel>
+              <SectionLabel>{t.hero.label}</SectionLabel>
             </LabelWrap>
 
+            {/* Two lines: the second carries the pink accent in both locales. */}
             <Headline data-hero-headline="">
-              <HeadlineLineWhite>FROM IDEA</HeadlineLineWhite>
-              <HeadlineLinePink>TO PRODUCT.</HeadlineLinePink>
+              <HeadlineLineWhite>{t.hero.headline[0]}</HeadlineLineWhite>
+              <HeadlineLinePink>{t.hero.headline[1]}</HeadlineLinePink>
             </Headline>
 
             {/* Mobile blob slot — canvas renders above filter stacking context */}
@@ -329,19 +333,15 @@ export function HeroSection() {
               </BlobNarrowInner>
             </BlobNarrowWrap>
 
-            <BodyText data-hero-body="">
-              I connect product thinking, AI, design and technology{' '}
-              <DesktopBr />
-              to turn raw ideas into real products.
-            </BodyText>
+            <BodyText data-hero-body="">{joinLines(t.hero.body, DesktopBr)}</BodyText>
 
             <CtaRow data-hero-cta="">
               <BlobCta href="#contact" variant="primary" size="lg">
-                Start a conversation
+                {t.hero.ctaPrimary}
               </BlobCta>
 
               <BlobCta href="#proof" variant="outlineLight" size="lg">
-                Explore selected work&nbsp;↗
+                {t.hero.ctaSecondary}
               </BlobCta>
             </CtaRow>
           </TextColumn>
@@ -355,7 +355,7 @@ export function HeroSection() {
         </HeroGrid>
       </SiteContainer>
 
-      <ScrollHint data-hero-hint="">SCROLL TO SHAPE THE IDEA</ScrollHint>
+      <ScrollHint data-hero-hint="">{t.hero.scrollHint}</ScrollHint>
     </Section>
   );
 }

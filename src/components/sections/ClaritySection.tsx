@@ -9,6 +9,8 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
+import { joinLines } from '@/lib/i18n/lines';
 
 /* ─── Section shell ────────────────────────────────────────────────────────── */
 const Section = styled.section`
@@ -42,6 +44,19 @@ const ContentGrid = styled.div`
   @media (max-width: 991px) {
     display: flex;
     flex-direction: column;
+    /*
+     * align-items: start above is written for the GRID, where it aligns items
+     * to the top of the row. In a flex COLUMN the same property switches axis
+     * and stops the two stacked columns from filling the container, so each one
+     * shrink-wrapped its own text — which made the stage (and therefore the ring
+     * and the Blob S inside it) as wide as the longest line of the statement
+     * headline. That is a layout dimension driven by copy length: the Czech
+     * statement is shorter, so its stage came out ~30 % smaller than the English
+     * one at the same viewport. Stretching restores the full-width stacking the
+     * stage's own max-width + margin-inline: auto were written for, and makes
+     * the size identical in both languages.
+     */
+    align-items: stretch;
   }
 `;
 
@@ -220,16 +235,26 @@ const DisciplineLabel = styled.p<DisciplineLabelProps>`
   max-width: 21%;
   z-index: 30;
 
+  /*
+   * The measure below 992 px is set by the longest single WORD, not by the
+   * longest label: a word cannot wrap, so a box narrower than it does not force
+   * a second line — it just lets the word hang outside its own box, toward the
+   * stage edge. TECHNOLOGIE and PRODUKTOVÉ are the widest words in either
+   * language and needed a few percent more than the previous 25 % / 28 %.
+   *
+   * Widening a max-width only has an effect when the content is wider than the
+   * old value, so every English label wraps and sits exactly as before.
+   */
   @media (max-width: 991px) {
     font-size: 11px;
     letter-spacing: 0.1em;
-    max-width: 25%;
+    max-width: 30%;
   }
 
   @media (max-width: 767px) {
     font-size: 9.5px;
     letter-spacing: 0.07em;
-    max-width: 28%;
+    max-width: 34%;
   }
 `;
 
@@ -355,7 +380,7 @@ const MobileOnly = styled.span`
  */
 const disciplineLabels = [
   {
-    text: 'PRODUCT THINKING',
+    id: 'product-thinking',
     align: 'right' as const,
     /* Sits one step farther out than the rest: the two-line label reads as
        crowding its arrow at the shared gap. */
@@ -364,42 +389,42 @@ const disciplineLabels = [
     d: 'M182 47.6 C177.9 68.1 184.5 84.1 202 95.6 M196.6 86.6 L202 95.6 L191.6 94.2',
   },
   {
-    text: 'RESEARCH',
+    id: 'research',
     align: 'left' as const,
     posPct: '62.98%',
     topPct: '3.45%',
     d: 'M314.9 41.4 C298.3 54.1 292.7 70.5 298.3 90.6 M300.2 80.3 L298.3 90.6 L291.3 82.8',
   },
   {
-    text: 'AI',
+    id: 'ai',
     align: 'left' as const,
     posPct: '83.62%',
     topPct: '26.34%',
     d: 'M410.5 167.1 C390.3 161.7 374 167.4 361.4 184.1 M370.7 179.3 L361.4 184.1 L363.4 173.8',
   },
   {
-    text: 'UX',
+    id: 'ux',
     align: 'left' as const,
     posPct: '76.32%',
     topPct: '57.45%',
     d: 'M381.6 340.9 C376.9 320.5 364.3 308.7 343.7 305.3 M352.2 311.4 L343.7 305.3 L353.7 302.3',
   },
   {
-    text: 'DESIGN',
+    id: 'design',
     align: 'center' as const,
     posPct: '52.04%',
     topPct: '70.62%',
     d: 'M260.2 415.2 C271.4 397.5 270.8 380.2 258.6 363.2 M260.4 373.6 L258.6 363.2 L267.8 368.2',
   },
   {
-    text: 'TECHNOLOGY',
+    id: 'technology',
     align: 'right' as const,
     posPct: '72.94%',
     topPct: '59.58%',
     d: 'M135.3 352.9 C155.6 347.8 167.2 335 170.1 314.2 M164.3 322.9 L170.1 314.2 L173.4 324.2',
   },
   {
-    text: 'BUSINESS',
+    id: 'business',
     align: 'right' as const,
     posPct: '82.69%',
     topPct: '29.09%',
@@ -410,6 +435,7 @@ const disciplineLabels = [
 export function ClaritySection() {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+  const t = useMessages();
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -495,23 +521,21 @@ export function ClaritySection() {
     <Section id="about" ref={sectionRef} data-scene-section="clarity">
       <SiteContainer>
         <div data-c-label="">
-          <SectionLabel>{`03  /  CLARITY BEFORE COMPLEXITY`}</SectionLabel>
+          <SectionLabel>{t.clarity.label}</SectionLabel>
         </div>
 
         <ContentGrid>
           {/* ── Text column ── */}
           <TextColumn>
+            {/* Three lines; the first carries the pink accent in both locales. */}
             <Headline data-c-headline="">
-              <HeadlineLinePink>CLARITY</HeadlineLinePink>
-              <HeadlineLine>BEFORE</HeadlineLine>
-              <HeadlineLine>COMPLEXITY.</HeadlineLine>
+              {t.clarity.headline.map((line, i) => {
+                const Line = i === 0 ? HeadlineLinePink : HeadlineLine;
+                return <Line key={line}>{line}</Line>;
+              })}
             </Headline>
 
-            <BodyText data-c-body="">
-              Find the real problem. Remove what does not matter.
-              <br />
-              Then connect every discipline around one clear direction.
-            </BodyText>
+            <BodyText data-c-body="">{joinLines(t.clarity.body, 'br')}</BodyText>
           </TextColumn>
 
           {/* ── Stage column ── */}
@@ -530,7 +554,7 @@ export function ClaritySection() {
               >
                 {disciplineLabels.map((d) => (
                   <path
-                    key={d.text}
+                    key={d.id}
                     data-c-connector=""
                     d={d.d}
                     fill="none"
@@ -544,22 +568,24 @@ export function ClaritySection() {
               </ConnectorSVG>
 
               {/* Discipline labels — z-index: 30, above canvas (z-index: 20) */}
-              {disciplineLabels.map((d) => (
+              {/* Ring geometry is fixed; only the wording comes from the locale. */}
+              {disciplineLabels.map((d, i) => (
                 <DisciplineLabel
-                  key={d.text}
+                  key={d.id}
                   data-c-discipline=""
                   $align={d.align}
                   $posPct={d.posPct}
                   $topPct={d.topPct}
                 >
-                  {d.text}
+                  {t.clarity.disciplines[i]}
                 </DisciplineLabel>
               ))}
             </ClarityStage>
 
             <StatementHeadline data-c-statement="">
-              <StatementLine>I DON&apos;T JUST WRITE CODE.</StatementLine>
-              <StatementLine>I CONNECT THE PIECES.</StatementLine>
+              {t.clarity.statement.map(line => (
+                <StatementLine key={line}>{line}</StatementLine>
+              ))}
             </StatementHeadline>
           </StageColumn>
         </ContentGrid>
@@ -576,15 +602,12 @@ export function ClaritySection() {
           />
           <div className="note-content">
             <InteractionLabel>
-              <DesktopOnly>INTERACTION</DesktopOnly>
-              <MobileOnly>MOBILE INTERACTION</MobileOnly>
+              <DesktopOnly>{t.clarity.note.desktopLabel}</DesktopOnly>
+              <MobileOnly>{t.clarity.note.mobileLabel}</MobileOnly>
             </InteractionLabel>
             <InteractionText>
-              <DesktopOnly>3D Blob S tilts and reacts toward the cursor.</DesktopOnly>
-              <MobileOnly>
-                Blob S turns with scroll inside its own section. No hover or
-                device orientation dependency.
-              </MobileOnly>
+              <DesktopOnly>{t.clarity.note.desktopText}</DesktopOnly>
+              <MobileOnly>{t.clarity.note.mobileText}</MobileOnly>
             </InteractionText>
           </div>
         </InteractionNote>

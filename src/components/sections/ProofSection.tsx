@@ -9,10 +9,21 @@ import { BlobCta } from '@/components/ui/BlobCta';
 import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
+import { joinLines } from '@/lib/i18n/lines';
 
 /* Section 06 — Proof Lives in Reality
-   PLACEHOLDER: All proof cards contain placeholder content only.
-   Phase 6 will replace them with real product screenshots and assets. */
+ *
+ * The three cards name the three kinds of evidence the section exists to show:
+ * a product UI, a tangible prototype, and the process behind them.
+ *
+ * They currently carry no imagery, because no real product asset exists in this
+ * repository yet. That is deliberate: the section states what it will prove and
+ * shows nothing it cannot back up, rather than displaying a stand-in that the
+ * brand's own rules forbid ("no fake screenshots, no invented proof"). Each card
+ * already has the frame, ratio and stacking behaviour a real asset needs — see
+ * the notes on FeaturedCard / HardwareCard / BuildPublicCard for what each one
+ * is sized to receive. */
 
 /*
  * Proof card interaction.
@@ -226,19 +237,6 @@ const CardHeadline = styled.h3`
   }
 `;
 
-const CardPlaceholderLabel = styled.p`
-  font-family: ${fonts.body};
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 18px;
-  color: ${colors.lime};
-
-  ${media.mobile} {
-    font-size: 10px;
-    line-height: 14px;
-  }
-`;
-
 const HardwareCard = styled.div`
   ${cardHover}
   --card-ring: rgba(8, 46, 38, 0.4);
@@ -269,19 +267,6 @@ const HardwareHeadline = styled.h3`
   ${media.mobile} {
     font-size: 34px;
     line-height: 40px;
-  }
-`;
-
-const HardwareSubLabel = styled.p`
-  font-family: ${fonts.body};
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 18px;
-  color: ${colors.darkGreen};
-
-  ${media.mobile} {
-    font-size: 10px;
-    line-height: 14px;
   }
 `;
 
@@ -319,19 +304,6 @@ const BuildPublicHeadline = styled.h3`
   }
 `;
 
-const BuildPublicSubLabel = styled.p`
-  font-family: ${fonts.body};
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 18px;
-  color: ${colors.lime};
-
-  ${media.mobile} {
-    font-size: 10px;
-    line-height: 14px;
-  }
-`;
-
 /*
  * One CTA for every breakpoint.
  *
@@ -356,6 +328,7 @@ const CtaWrap = styled.div`
 export function ProofSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+  const t = useMessages();
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -430,55 +403,41 @@ export function ProofSection() {
       <Content>
         <SiteContainer>
           <div data-p-label="">
-            <SectionLabel color={colors.darkGreen}>{`06  /  REAL PROOF`}</SectionLabel>
+            <SectionLabel color={colors.darkGreen}>{t.proof.label}</SectionLabel>
           </div>
 
           <Headline data-p-headline="">
-            <HeadlineLine>PROOF LIVES</HeadlineLine>
-            <HeadlineLine>IN REALITY.</HeadlineLine>
+            {t.proof.headline.map(line => (
+              <HeadlineLine key={line}>{line}</HeadlineLine>
+            ))}
           </Headline>
 
-          <BodyText data-p-body="">Real products. Real progress. Real lessons.</BodyText>
+          <BodyText data-p-body="">{t.proof.body}</BodyText>
 
           <CardsGrid>
-            {/* PLACEHOLDER — replace with real product screenshot before launch */}
+            {/* Awaits a real product UI screenshot — the tall card is the one
+                sized to carry it, at roughly 790 x 430 on desktop. */}
             <FeaturedCard data-p-card="">
-              <CardWorkLabel>{`SELECTED WORK  /  01`}</CardWorkLabel>
-              <div>
-                <CardHeadline>
-                  A REAL
-                  <br />
-                  DIGITAL PRODUCT
-                </CardHeadline>
-                {/* PLACEHOLDER: replace with real screenshot */}
-                <CardPlaceholderLabel>REPLACE WITH A REAL SCREENSHOT</CardPlaceholderLabel>
-              </div>
+              <CardWorkLabel>{t.proof.featured.workLabel}</CardWorkLabel>
+              {/* Line count is a locale decision: Czech needs three lines to
+                  keep the display size inside the card on a 390 px screen. */}
+              <CardHeadline>{joinLines(t.proof.featured.headline, 'br')}</CardHeadline>
             </FeaturedCard>
 
-            {/* PLACEHOLDER — replace with real hardware+software prototype asset */}
+            {/* Awaits a real prototype / device photograph. */}
             <HardwareCard data-p-card="">
-              <HardwareHeadline>
-                HARDWARE
-                <br />
-                + SOFTWARE
-              </HardwareHeadline>
-              <HardwareSubLabel>REAL PROTOTYPE</HardwareSubLabel>
+              <HardwareHeadline>{joinLines(t.proof.hardware.headline, 'br')}</HardwareHeadline>
             </HardwareCard>
 
-            {/* PLACEHOLDER — replace with real build-in-public process image */}
+            {/* Awaits a real process image (Figma, sketch, iteration, testing). */}
             <BuildPublicCard id="build-in-public" data-p-card="">
-              <BuildPublicHeadline>
-                BUILD IN
-                <br />
-                PUBLIC
-              </BuildPublicHeadline>
-              <BuildPublicSubLabel>REAL PROCESS IMAGE</BuildPublicSubLabel>
+              <BuildPublicHeadline>{joinLines(t.proof.buildPublic.headline, 'br')}</BuildPublicHeadline>
             </BuildPublicCard>
           </CardsGrid>
 
           <CtaWrap data-p-cta="">
             <BlobCta href="#proof" variant="outlineDark" size="md">
-              Explore selected work
+              {t.proof.cta}
             </BlobCta>
           </CtaWrap>
         </SiteContainer>

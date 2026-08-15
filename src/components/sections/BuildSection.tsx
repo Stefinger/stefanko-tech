@@ -8,6 +8,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
 
 /* ─── Section shell ────────────────────────────────────────────────────────── */
 /*
@@ -356,7 +357,6 @@ const slabs = [
     topPct: '5%',
     mobileOffset: '-16px',
     mobileTop: '18px',
-    labelText: 'PROBLEM',
     labelColor: colors.cream,
   },
   {
@@ -367,7 +367,6 @@ const slabs = [
     topPct: '13.5%',
     mobileOffset: '0px',
     mobileTop: '58px',
-    labelText: 'EXPERIENCE',
     labelColor: colors.darkGreen,
   },
   {
@@ -378,7 +377,6 @@ const slabs = [
     topPct: '22%',
     mobileOffset: '14px',
     mobileTop: '98px',
-    labelText: 'PRODUCT',
     labelColor: colors.cream,
   },
 ];
@@ -397,6 +395,7 @@ const slabMobileFrom = [
 ] as const;
 
 export function BuildSection() {
+  const t = useMessages();
   const sectionRef   = useRef<HTMLElement>(null);
   const assemblyRef  = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -481,22 +480,22 @@ export function BuildSection() {
       <Content>
         <SiteContainer>
           <div data-b-label="">
-            <SectionLabel>{`05  /  BUILD`}</SectionLabel>
+            <SectionLabel>{t.build.label}</SectionLabel>
           </div>
 
           <ContentGrid>
             <TextColumn>
               <Headline data-b-headline="">
-                <HeadlineLine>DESIGNED</HeadlineLine>
-                <HeadlineLine>TO BE USED.</HeadlineLine>
+                {t.build.headline.map(line => (
+                  <HeadlineLine key={line}>{line}</HeadlineLine>
+                ))}
               </Headline>
               <HeadlinePink data-b-headline-pink="">
-                <HeadlineLinePink>BUILT</HeadlineLinePink>
-                <HeadlineLinePink>TO BE REAL.</HeadlineLinePink>
+                {t.build.headlineAccent.map(line => (
+                  <HeadlineLinePink key={line}>{line}</HeadlineLinePink>
+                ))}
               </HeadlinePink>
-              <BodyText data-b-body="">
-                The idea becomes an experience people can understand, use and test.
-              </BodyText>
+              <BodyText data-b-body="">{t.build.body}</BodyText>
             </TextColumn>
 
             <AssemblyStage ref={assemblyRef} aria-hidden="true">
@@ -514,7 +513,7 @@ export function BuildSection() {
                   <SlabSurface $bg={slab.bg}>
                     {/* Label rides its own card — rotation and position for free */}
                     <SlabLabel data-b-slab-label="" $color={slab.labelColor}>
-                      {slab.labelText}
+                      {t.build.slabs[i]}
                     </SlabLabel>
                   </SlabSurface>
                 </Slab>

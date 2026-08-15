@@ -36,6 +36,20 @@ export const SHAPE_OUTLINE_DARK: BlobShape = {
   d: 'M23.3684 9.90803C46.5409 0.252862 71.6443 10.8736 97.7133 4.11493C123.782 -2.64369 148.886 8.94252 174.955 2.1839C199.093 -3.60921 216.472 8.94252 222.265 20.5287C228.058 32.1149 220.334 43.7011 199.093 48.5287C172.058 53.3563 145.989 45.6322 119.92 50.4598C90.9547 55.2873 56.196 50.4598 33.0236 44.6667C9.8512 39.8391 -1.735 31.1494 1.16155 20.5287C4.0581 9.90804 11.7822 12.8046 23.3684 9.90803Z',
 };
 
+/**
+ * Compact cloud — the hamburger's organic border, from
+ * `public/assets/hamburger-blob-border.svg`.
+ *
+ * Inlined here because two controls now share it: the mobile hamburger (which
+ * renders it as an outline at rest and as a pink fill when the menu is open)
+ * and the language switcher. Both are small utility controls, so they use the
+ * same silhouette rather than the wider CTA blobs.
+ */
+export const SHAPE_CLOUD: BlobShape = {
+  viewBox: '0 0 50.6007 50',
+  d: 'M13.4035 43.0382C6.7659 42.4708 2.2658 36.6838 4.06584 30.6698C1.36577 25.904 4.06584 20.0035 9.12845 18.4149C8.00343 11.947 13.6286 6.61383 19.7037 7.86202C23.1913 2.52886 31.629 2.7558 34.779 8.31591C40.4042 6.38689 46.0293 10.9258 45.3543 16.8263C50.6419 19.3226 51.6544 26.9252 47.1543 30.5563C48.1668 37.1377 42.3167 42.6978 36.0166 41.6765C31.629 47.1232 23.0788 47.4636 18.3537 42.4708C16.7786 43.0382 15.0911 43.1517 13.4035 43.0382Z',
+};
+
 /** Compact navbar outline — Figma `cta-start-project` */
 export const SHAPE_NAV: BlobShape = {
   viewBox: '0 0 160.014 50.1499',

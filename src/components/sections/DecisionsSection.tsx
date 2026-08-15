@@ -9,6 +9,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BlobSlot } from '@/components/blob/BlobSlot';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMessages } from '@/lib/i18n/LocaleProvider';
 
 /* ─── Section shell ────────────────────────────────────────────────────────── */
 const Section = styled.section`
@@ -383,15 +384,15 @@ const MOBILE_PATH_D =
  * which leaves ≥ 30 px of clearance between every card and the curve at every
  * supported width.
  */
+/* Step COPY (label + supporting line) lives in the locale dictionary and is
+   matched to these by index; everything here is artwork and placement. */
 const cloudSteps = [
   {
     number: '01',
     numberColor: colors.darkGreen,
     bgSrc: '/assets/cloud-bg-01.svg',
     bgSrcMobile: '/assets/cloud-bg-01-mobile.svg',
-    label: 'REMOVE FRICTION',
     labelColor: colors.cream,
-    subtext: 'Make the useful path easier.',
     subtextColor: colors.cream,
     shiftX: '0%',
     shiftY: '-4.5%',
@@ -405,9 +406,7 @@ const cloudSteps = [
     numberColor: colors.pink,
     bgSrc: '/assets/cloud-bg-02.svg',
     bgSrcMobile: '/assets/cloud-bg-02-mobile.svg',
-    label: 'FOCUS ON VALUE',
     labelColor: colors.darkGreen,
-    subtext: 'Protect the reason the product should exist.',
     subtextColor: colors.darkGreen,
     shiftX: '0%',
     shiftY: '0%',
@@ -421,9 +420,7 @@ const cloudSteps = [
     numberColor: colors.darkGreen,
     bgSrc: '/assets/cloud-bg-03.svg',
     bgSrcMobile: '/assets/cloud-bg-03-mobile.svg',
-    label: 'BUILD LESS',
     labelColor: colors.cream,
-    subtext: 'Ship the smallest useful version.',
     subtextColor: colors.cream,
     shiftX: '0%',
     shiftY: '-4.5%',
@@ -437,9 +434,7 @@ const cloudSteps = [
     numberColor: colors.lime,
     bgSrc: '/assets/cloud-bg-04.svg',
     bgSrcMobile: '/assets/cloud-bg-04-mobile.svg',
-    label: 'LEARN FAST',
     labelColor: colors.darkGreen,
-    subtext: 'Use reality to shape the next decision.',
     subtextColor: colors.darkGreen,
     shiftX: '-2.5%',
     shiftY: '-2%',
@@ -458,6 +453,7 @@ const cardProgressDesktop   = [0.03, 0.28, 0.53, 0.78] as const;
 export function DecisionsSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+  const t = useMessages();
 
   useGSAP(() => {
     if (reducedMotion) return;
@@ -608,18 +604,18 @@ export function DecisionsSection() {
       <Content>
         <SiteContainer>
           <div data-d-label="">
-            <SectionLabel color={colors.darkGreen}>{`04  /  DECISIONS`}</SectionLabel>
+            <SectionLabel color={colors.darkGreen}>{t.decisions.label}</SectionLabel>
           </div>
 
+          {/* Three lines; the last carries the pink accent in both locales. */}
           <Headline data-d-headline="">
-            <HeadlineLine>PRODUCTS ARE</HeadlineLine>
-            <HeadlineLine>BUILT THROUGH</HeadlineLine>
-            <HeadlineLinePink>DECISIONS.</HeadlineLinePink>
+            {t.decisions.headline.map((line, i) => {
+              const Line = i === t.decisions.headline.length - 1 ? HeadlineLinePink : HeadlineLine;
+              return <Line key={line}>{line}</Line>;
+            })}
           </Headline>
 
-          <BodyText data-d-body="">
-            What to build matters. What not to build matters just as much.
-          </BodyText>
+          <BodyText data-d-body="">{t.decisions.body}</BodyText>
 
           {/* ── Desktop journey ── */}
           <DesktopJourney aria-hidden="true" data-d-journey-desktop="">
@@ -692,10 +688,10 @@ export function DecisionsSection() {
                   />
                   <CloudContent $shiftX={step.shiftX} $shiftY={step.shiftY}>
                     <CloudLabel style={{ color: step.labelColor }}>
-                      {step.label}
+                      {t.decisions.steps[i]?.label}
                     </CloudLabel>
                     <CloudSubtext style={{ color: step.subtextColor }}>
-                      {step.subtext}
+                      {t.decisions.steps[i]?.subtext}
                     </CloudSubtext>
                   </CloudContent>
                 </CloudBgWrap>
@@ -744,10 +740,10 @@ export function DecisionsSection() {
                   />
                   <MobileCloudContent $shiftX={step.shiftX} $shiftY={step.shiftY}>
                     <MobileCloudLabel style={{ color: step.labelColor }}>
-                      {step.label}
+                      {t.decisions.steps[i]?.label}
                     </MobileCloudLabel>
                     <MobileCloudSubtext style={{ color: step.subtextColor }}>
-                      {step.subtext}
+                      {t.decisions.steps[i]?.subtext}
                     </MobileCloudSubtext>
                   </MobileCloudContent>
                 </MobileCloudBgWrap>
