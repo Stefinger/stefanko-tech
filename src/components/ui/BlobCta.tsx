@@ -1,6 +1,6 @@
 'use client';
 import styled, { css, keyframes } from 'styled-components';
-import { colors, fonts, motion } from '@/styles/tokens';
+import { colors, fonts, motion, strokes } from '@/styles/tokens';
 import {
   SHAPE_PRIMARY,
   SHAPE_OUTLINE_LIGHT,
@@ -63,7 +63,7 @@ const VARIANTS: Record<BlobCtaVariant, VariantSpec> = {
   outlineLight: {
     shape: SHAPE_OUTLINE_LIGHT,
     stroke: colors.cream,
-    strokeOpacity: 0.45,
+    strokeOpacity: strokes.blobOutlineOpacity,
     hoverFill: colors.cream,
     label: colors.creamBody,
     hoverLabel: colors.darkGreen,
@@ -72,7 +72,7 @@ const VARIANTS: Record<BlobCtaVariant, VariantSpec> = {
   outlineDark: {
     shape: SHAPE_OUTLINE_DARK,
     stroke: colors.darkGreen,
-    strokeOpacity: 0.45,
+    strokeOpacity: strokes.blobOutlineOpacity,
     hoverFill: colors.darkGreen,
     label: colors.darkGreen,
     hoverLabel: colors.cream,
@@ -83,7 +83,7 @@ const VARIANTS: Record<BlobCtaVariant, VariantSpec> = {
   nav: {
     shape: SHAPE_NAV,
     stroke: colors.cream,
-    strokeOpacity: 0.4,
+    strokeOpacity: strokes.blobOutlineOpacity,
     strokeHoverOpacity: 0,
     hoverFill: colors.pink,
     label: colors.cream,
@@ -179,7 +179,7 @@ const OutlineLayer = styled.span<{ $stroke: string; $strokeOpacity: number }>`
   path {
     stroke: ${({ $stroke }) => $stroke};
     stroke-opacity: ${({ $strokeOpacity }) => $strokeOpacity};
-    stroke-width: 1.2;
+    stroke-width: ${strokes.blobOutlineWidth};
     transition:
       stroke-opacity 600ms cubic-bezier(0.22, 0.61, 0.36, 1),
       stroke-width 600ms cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -333,7 +333,7 @@ export function BlobCta({
       /* Outlines normally strengthen on hover. A variant that fills opaquely
          instead dissolves its outline, so no pale ring survives under the fill. */
       $strokeHoverOpacity={spec.strokeHoverOpacity ?? 0.85}
-      $strokeHoverWidth={spec.strokeHoverOpacity === 0 ? '1.2' : '1.7'}
+      $strokeHoverWidth={spec.strokeHoverOpacity === 0 ? `${strokes.blobOutlineWidth}` : '1.7'}
       $label={spec.label}
       $hoverLabel={spec.hoverLabel}
       $fullWidth={fullWidth}

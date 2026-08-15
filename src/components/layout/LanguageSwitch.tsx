@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import styled from 'styled-components';
-import { colors, fonts, motion } from '@/styles/tokens';
+import { colors, fonts, motion, strokes } from '@/styles/tokens';
 import { SHAPE_CLOUD } from '@/components/ui/blobShapes';
 import { useLocale, useMessages } from '@/lib/i18n/LocaleProvider';
 import { localePath, otherLocale, LOCALE_COOKIE } from '@/lib/i18n/config';
@@ -47,8 +47,8 @@ const Outline = styled.span`
 
   path {
     stroke: ${colors.cream};
-    stroke-opacity: 0.75;
-    stroke-width: 1.2;
+    stroke-opacity: ${strokes.blobOutlineOpacity};
+    stroke-width: ${strokes.blobOutlineWidth};
     transition: stroke-opacity 600ms ${motion.hoverEase};
   }
 `;

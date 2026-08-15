@@ -66,3 +66,20 @@ export const radius = {
   card: '34px',
   cardMobile: '30px',
 } as const;
+
+/**
+ * The organic blob OUTLINE, as one value.
+ *
+ * Every hairline-outlined blob control belongs to a single family: the navbar
+ * CTA, the language switcher, the mobile hamburger and the Hero / Final / Proof
+ * outline CTAs. They were drawn at three different opacities (0.4, 0.45 and
+ * 0.75), which read as three different greys — most visibly in the navbar,
+ * where the switcher sits directly beside the CTA.
+ *
+ * 0.45 is the value the large outline CTAs were approved at, so unifying here
+ * leaves them untouched and brings the small utility controls into the family.
+ */
+export const strokes = {
+  blobOutlineOpacity: 0.45,
+  blobOutlineWidth: 1.2,
+} as const;

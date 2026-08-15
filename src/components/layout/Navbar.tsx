@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styled, { css } from 'styled-components';
-import { colors, fonts, media, motion } from '@/styles/tokens';
+import { colors, fonts, media, motion, strokes } from '@/styles/tokens';
 import { setMenuOpen } from '@/lib/menuOpenState';
 import { BlobCta } from '@/components/ui/BlobCta';
 import { LanguageSwitch } from '@/components/layout/LanguageSwitch';
@@ -903,25 +903,31 @@ export function Navbar() {
                 </svg>
               </span>
 
+              {/* Outline drawn from the SAME path and the SAME stroke token as
+                  the language switcher and the CTAs, rather than from a separate
+                  SVG file that carried its own opacity and drifted from them. */}
               <span
                 data-hamburger-border=""
                 aria-hidden="true"
                 style={{ position: 'absolute', inset: 0, display: 'block' }}
               >
-                <Image
-                  src="/assets/hamburger-blob-border.svg"
-                  alt=""
-                  aria-hidden={true}
-                  width={52}
-                  height={50}
-                  unoptimized
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    objectFit: 'fill',
-                    pointerEvents: 'none',
-                  }}
-                />
+                <svg
+                  viewBox={SHAPE_CLOUD.viewBox}
+                  preserveAspectRatio="none"
+                  fill="none"
+                  style={{ display: 'block', width: '100%', height: '100%' }}
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d={HAMBURGER_BLOB_D}
+                    fill="none"
+                    stroke={colors.cream}
+                    strokeOpacity={strokes.blobOutlineOpacity}
+                    strokeWidth={strokes.blobOutlineWidth}
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
               </span>
               <BurgerLines>
                 <BurgerLine $open={isOpen} />

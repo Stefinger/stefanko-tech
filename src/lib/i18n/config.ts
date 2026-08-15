@@ -18,13 +18,12 @@ export const SITE_URL = 'https://stefanko.tech';
 /**
  * The page title, for every locale.
  *
- * It is a constant rather than a dictionary entry because it is deliberately
- * IDENTICAL in English and Czech: it is a personal name plus a brand role, and
- * `Product Builder` is the brand's own term for that role in both languages.
- * Declaring it once is also what keeps the `<title>` and `og:title` from
- * drifting apart — both read it from here.
+ * Deliberately just the brand — no positioning line. It is a constant rather
+ * than a dictionary entry because it is IDENTICAL in English and Czech, and
+ * declaring it once is what keeps the `<title>` and `og:title` from drifting
+ * apart: both read it from here.
  */
-export const SITE_TITLE = 'Jan Štefko · Product Builder | Stefanko.tech';
+export const SITE_TITLE = 'Stefanko.tech';
 
 export function isLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);

@@ -100,7 +100,16 @@ export const SCENE_CONFIGS: Record<SceneName, BlobSceneConfig> = {
     depthScale: 0.72,
     visualScale: 1.0,
     idleAmount: 0.14,
-    pointerAmount: 0,
+    /*
+     * This is the section whose interaction note states that the Blob S reacts
+     * to the cursor, so it has to be true HERE — it was 0, which left the claim
+     * sitting beside an object that ignored the pointer.
+     *
+     * Deliberately below the hero's 1.0: this scene is the settled one (idle is
+     * only 0.14), so the cursor gets a restrained answer rather than the hero's
+     * full swing.
+     */
+    pointerAmount: 0.6,
   },
   decisions: {
     // The object steps aside into a corner while the timeline leads

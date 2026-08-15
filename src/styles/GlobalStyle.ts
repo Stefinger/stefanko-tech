@@ -60,6 +60,61 @@ export const GlobalStyle = createGlobalStyle`
     display: block;
   }
 
+  /*
+   * Czech display headlines — extra room above every line.
+   *
+   * The condensed display type is set at a line-height of 1.03–1.075, which
+   * measures out to ZERO gap between consecutive line boxes. That is fine for
+   * English: uppercase Latin has nothing above the cap height, so the tightness
+   * is exactly what gives the headlines their density.
+   *
+   * Czech uppercase does have something up there. Á Č Ď Ě Í Ř Š Ť Ú Ů Ý Ž all
+   * carry a mark that sits above the caps, in the band the tight leading has
+   * already spent — so the accents of one line crowd the line above it and, at
+   * the top of a section, press against whatever precedes the headline.
+   *
+   * The correction is line-height, not padding, and not font-size.
+   *
+   * Padding on the line spans was tried first and is NOT sufficient: each line
+   * is its own block, so padding does separate one span from the next — but a
+   * span that WRAPS produces two visual lines inside a single box, and padding
+   * cannot reach between them. Measured, that left the Final CTA at 390 px
+   * ("STOJÍ VÁŠ / NÁPAD") at -2.2 px, i.e. the accent of NÁPAD genuinely
+   * overlapping the line above it.
+   *
+   * line-height governs baseline-to-baseline distance, so it lifts EVERY line
+   * box apart — wrapped lines included — with one declaration.
+   *
+   * 1.15 comes from the metrics rather than taste: across these headlines the
+   * accent ascent plus the previous line's descent measures ~1.11 em, so 1.15
+   * leaves roughly 2-4 px of real ink clearance at every size. Sizes, weight and
+   * the type scale are untouched, and the headlines stay condensed and dense.
+   *
+   * Scoped to the Czech lang attribute, so English renders byte-identical and
+   * keeps its own per-component leading.
+   *
+   * The Clarity statement gets its own value. It is set tighter than the rest
+   * relative to its size (1.1 on desktop, 1.176 at 390 px), and 1.15 would have
+   * been an improvement at the large end but a REGRESSION at 390 — so it takes
+   * 1.18, which clears it everywhere and never tightens it.
+   */
+  html[lang="cs"] {
+    [data-hero-headline] > span,
+    [data-u-headline] > span,
+    [data-c-headline] > span,
+    [data-d-headline] > span,
+    [data-b-headline] > span,
+    [data-b-headline-pink] > span,
+    [data-p-headline] > span,
+    [data-f-headline] > span {
+      line-height: 1.15;
+    }
+
+    [data-c-statement] > span {
+      line-height: 1.18;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
