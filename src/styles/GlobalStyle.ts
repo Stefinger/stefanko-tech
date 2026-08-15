@@ -85,18 +85,19 @@ export const GlobalStyle = createGlobalStyle`
    * line-height governs baseline-to-baseline distance, so it lifts EVERY line
    * box apart — wrapped lines included — with one declaration.
    *
-   * 1.15 comes from the metrics rather than taste: across these headlines the
-   * accent ascent plus the previous line's descent measures ~1.11 em, so 1.15
-   * leaves roughly 2-4 px of real ink clearance at every size. Sizes, weight and
-   * the type scale are untouched, and the headlines stay condensed and dense.
+   * 1.19 is an optical value, arrived at by looking rather than by metrics.
+   * 1.15 was the point where nothing collided any more (accent ascent plus the
+   * previous line's descent measures ~1.11 em), but 2-4 px of clearance still
+   * read as glued together at display sizes. 1.19 roughly doubles the tightest
+   * gaps to 4-9 px, which separates the rows without loosening the block —
+   * sizes, weight, tracking and the type scale are all untouched.
    *
    * Scoped to the Czech lang attribute, so English renders byte-identical and
    * keeps its own per-component leading.
    *
    * The Clarity statement gets its own value. It is set tighter than the rest
-   * relative to its size (1.1 on desktop, 1.176 at 390 px), and 1.15 would have
-   * been an improvement at the large end but a REGRESSION at 390 — so it takes
-   * 1.18, which clears it everywhere and never tightens it.
+   * relative to its size (1.1 on desktop, 1.176 at 390 px), so it needs a little
+   * more than the others to read with the same air: 1.21.
    */
   html[lang="cs"] {
     [data-hero-headline] > span,
@@ -106,12 +107,18 @@ export const GlobalStyle = createGlobalStyle`
     [data-b-headline] > span,
     [data-b-headline-pink] > span,
     [data-p-headline] > span,
-    [data-f-headline] > span {
-      line-height: 1.15;
+    [data-f-headline] > span,
+    /* The Proof card headlines are br-separated inside an h3 rather than one
+       span per line, so the selector above never reached them — which left
+       SKUTEČNÝ / DIGITÁLNÍ / PRODUKT at its base 1.103 and actually overlapping
+       by 0.3 px. All three cards take the same value so they stay consistent
+       with each other on the page. */
+    [data-p-card] h3 {
+      line-height: 1.19;
     }
 
     [data-c-statement] > span {
-      line-height: 1.18;
+      line-height: 1.21;
     }
   }
 
