@@ -9,7 +9,12 @@
  const vertex='attribute vec2 aPosition;void main(){gl_Position=vec4(aPosition,0.,1.);}';
  const glsl=value=>Number(value).toFixed(3);
  const introMass=window.JELLY_MOTION.map(({direction,resting,arrival,radius},i)=>{
-  const sphere=`thought(p,vec3(${direction.map(glsl)}),vec3(${resting.map(glsl)}),${glsl(arrival/1000)},${glsl(radius)})`;
+  // Start each piece fully outside the viewport: along its dominant axis the centre must sit
+  // beyond the edge by the whole sphere (radius + surface wobble) plus a small margin.
+  // .55 is the original offset; only the pieces that used to peek in move a few px further out.
+  const len=Math.hypot(direction[0],direction[1]),dominant=Math.max(Math.abs(direction[0]),Math.abs(direction[1]))/len;
+  const clearance=Math.max(.55,(radius+.035+.03)/dominant);
+  const sphere=`thought(p,vec3(${direction.map(glsl)}),vec3(${resting.map(glsl)}),${glsl(arrival/1000)},${glsl(radius)},${glsl(clearance)})`;
   return i?`mass=softUnion(mass,${sphere},.27);`:`float mass=${sphere};`;
  }).join('\n');
  const fragment=`precision highp float;
@@ -36,8 +41,8 @@
   vec2 q=vec2(d+radius,abs(p.z)-depth);
   return min(max(q.x,q.y),0.)+length(max(q,0.))-radius;
  }
- float thought(vec3 p,vec3 direction,vec3 resting,float arrival,float radius){
-  direction.xy=direction.xy*uBounds+normalize(direction.xy)*.55;
+ float thought(vec3 p,vec3 direction,vec3 resting,float arrival,float radius,float clearance){
+  direction.xy=direction.xy*uBounds+normalize(direction.xy)*clearance;
   float travel=1.-pow(clamp((uTime-arrival+.78)/.78,0.,1.),4.);
   float elapsed=max(0.,uTime-arrival);
   float bounce=sin(elapsed*17.)*exp(-elapsed*2.8);

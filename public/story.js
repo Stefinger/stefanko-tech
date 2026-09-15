@@ -120,6 +120,25 @@ function measure(){
  }
  $('.prototype-back').style.height=$('.prototype-panel').offsetHeight+'px';window.storyDirector?.rebuild({height:viewportHeight,reduced:reduced.matches,onUpdate:requestRender});paintChat(reduced.matches?10000:localProgress(acts[0])*10000);requestRender();
  questionWidth=$('.question-visual').clientWidth;questionHeight=$('.question-visual').clientHeight;
+ landOnHash();
+}
+// Direct links to a section (/#contact, /en#story, the language switch). The browser jumps to the
+// fragment on its own, but ScrollTrigger refreshes and the re-measure after fonts load rebuild the
+// scene geometry and discard that position. So the target is landed explicitly, instantly, after
+// every geometry change until the page has fully settled or the visitor takes over the scroll.
+let hashLanding=Boolean(location.hash&&document.getElementById(location.hash.slice(1)));
+function landOnHash(){
+ if(!hashLanding||openingRunning)return;
+ const target=document.getElementById(location.hash.slice(1));
+ if(target)target.scrollIntoView({behavior:'instant',block:'start'});
+}
+if(hashLanding){
+ const stop=()=>{hashLanding=false};
+ ['wheel','touchstart','keydown','pointerdown'].forEach(type=>addEventListener(type,stop,{once:true,passive:true}));
+ window.ScrollTrigger?.addEventListener('refresh',landOnHash);
+ const loaded=document.readyState==='complete'?Promise.resolve():new Promise(resolve=>addEventListener('load',resolve,{once:true}));
+ const fonts=document.fonts?Promise.race([document.fonts.ready,new Promise(resolve=>setTimeout(resolve,2500))]):Promise.resolve();
+ Promise.all([loaded,fonts]).then(()=>requestAnimationFrame(()=>{landOnHash();setTimeout(stop,300)}));
 }
 addEventListener('scroll',requestRender,{passive:true});
 let resizeFrame=0;
