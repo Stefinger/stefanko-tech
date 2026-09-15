@@ -15,7 +15,11 @@ import {
  * Both locales describe the SAME page in two languages, so each one declares a
  * canonical pointing at itself plus the full `hreflang` set — that pairing is
  * what tells search engines these are alternates rather than duplicates.
- * `x-default` points at English, which is the default locale and lives at `/`.
+ * `x-default` points at English, which is the default locale of the old site.
+ *
+ * The old site is archived under `/old-web`: it stays fully crawlable so robots
+ * can read the `noindex` below (mirrored by an `X-Robots-Tag` header in
+ * next.config.ts), but it must never compete with the new homepage in search.
  */
 export function buildMetadata(locale: Locale): Metadata {
   const m = getMessages(locale);
@@ -26,6 +30,7 @@ export function buildMetadata(locale: Locale): Metadata {
     metadataBase: new URL(SITE_URL),
     title: SITE_TITLE,
     description: m.meta.description,
+    robots: { index: false, follow: false },
     alternates: {
       canonical: self,
       languages: {

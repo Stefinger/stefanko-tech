@@ -1,5 +1,17 @@
 # Stefanko.tech Website
 
+## Current routing (after the static homepage migration)
+
+- `/` and `/en` — the live homepage: standalone static HTML/CSS/JS in `public/`
+  (`index.html`, generated `en.html`), served via rewrites in `next.config.ts`.
+  Not React; do not wrap it in a layout, an iframe or rewrite it into components.
+  English is generated from Czech: see `scripts/new-web/README.md`.
+- `/old-web` and `/old-web/cs` — the original Next.js site described below,
+  archived and `noindex`. Its assets live in `public/old-web/assets/`.
+- `/cs` redirects permanently to `/`.
+
+The rest of this file describes the original Next.js site.
+
 Read these files before making architectural or visual decisions:
 
 - @docs/brand-bible.md

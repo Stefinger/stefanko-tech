@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { HomePage } from '@/components/HomePage';
 import { buildMetadata } from '@/lib/i18n/metadata';
 
-/* English homepage — the default locale, served from the root URL. */
+/* Original English homepage — archived at /old-web (noindex). */
 export const metadata: Metadata = buildMetadata('en');
 
 export default function EnHomePage() {

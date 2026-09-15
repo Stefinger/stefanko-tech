@@ -321,8 +321,8 @@ const MobileTagline = styled.p`
  */
 const questions = [
   {
-    src: '/assets/question-0.svg',
-    srcMobile: '/assets/question-0-mobile.svg',
+    src: '/old-web/assets/question-0.svg',
+    srcMobile: '/old-web/assets/question-0-mobile.svg',
     labelColor: colors.cream,
     rotation: -9,
     desktopLeftFrac: 0.14,
@@ -332,8 +332,8 @@ const questions = [
     mobileFontSize: '20px',
   },
   {
-    src: '/assets/question-1.svg',
-    srcMobile: '/assets/question-1-mobile.svg',
+    src: '/old-web/assets/question-1.svg',
+    srcMobile: '/old-web/assets/question-1-mobile.svg',
     labelColor: colors.darkGreen,
     rotation: 6,
     desktopLeftFrac: 0.89,
@@ -343,8 +343,8 @@ const questions = [
     mobileFontSize: '20px',
   },
   {
-    src: '/assets/question-2.svg',
-    srcMobile: '/assets/question-2-mobile.svg',
+    src: '/old-web/assets/question-2.svg',
+    srcMobile: '/old-web/assets/question-2-mobile.svg',
     labelColor: colors.cream,
     rotation: 12,
     desktopLeftFrac: 0,
@@ -354,8 +354,8 @@ const questions = [
     mobileFontSize: '20px',
   },
   {
-    src: '/assets/question-3.svg',
-    srcMobile: '/assets/question-3-mobile.svg',
+    src: '/old-web/assets/question-3.svg',
+    srcMobile: '/old-web/assets/question-3-mobile.svg',
     labelColor: colors.cream,
     rotation: -17,
     desktopLeftFrac: 0.72,
@@ -365,8 +365,8 @@ const questions = [
     mobileFontSize: '16px',
   },
   {
-    src: '/assets/question-4.svg',
-    srcMobile: '/assets/question-4-mobile.svg',
+    src: '/old-web/assets/question-4.svg',
+    srcMobile: '/old-web/assets/question-4-mobile.svg',
     labelColor: colors.darkGreen,
     rotation: -5,
     desktopLeftFrac: 0.04,
@@ -376,8 +376,8 @@ const questions = [
     mobileFontSize: '17px',
   },
   {
-    src: '/assets/question-5.svg',
-    srcMobile: '/assets/question-5-mobile.svg',
+    src: '/old-web/assets/question-5.svg',
+    srcMobile: '/old-web/assets/question-5-mobile.svg',
     labelColor: colors.cream,
     rotation: 9,
     desktopLeftFrac: 0.75,

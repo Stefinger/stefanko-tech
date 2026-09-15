@@ -118,7 +118,7 @@ export function Footer() {
       <SiteContainer>
         <FooterRule data-ft-rule="">
           <Image
-            src="/assets/footer-rule.svg"
+            src="/old-web/assets/footer-rule.svg"
             alt=""
             aria-hidden={true}
             fill
@@ -131,7 +131,7 @@ export function Footer() {
           <FooterLeft data-ft-left="">
             <FooterBlobSWrap>
               <Image
-                src="/assets/blob-s-footer-logo.svg"
+                src="/old-web/assets/blob-s-footer-logo.svg"
                 alt={t.footer.logoAlt}
                 fill
                 unoptimized

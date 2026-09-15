@@ -849,7 +849,7 @@ export function Navbar() {
             <LogoGroup href={localePath(locale)}>
               <NavBlobSWrap data-nav-logo-blob="">
                 <Image
-                  src="/assets/blob-s-nav.svg"
+                  src="/old-web/assets/blob-s-nav.svg"
                   alt={t.nav.logoAlt}
                   fill
                   unoptimized
