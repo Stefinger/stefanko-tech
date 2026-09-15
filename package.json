@@ -10,7 +10,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:en": "python3 scripts/new-web/build-english.py"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

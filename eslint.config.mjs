@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The static homepage (hand-written + minified vendor JS served as-is from
+    // public/) and its delivery drop zone are not TypeScript sources.
+    "public/**",
+    "_incoming/**",
   ]),
   {
     rules: {

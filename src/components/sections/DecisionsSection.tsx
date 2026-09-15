@@ -390,8 +390,8 @@ const cloudSteps = [
   {
     number: '01',
     numberColor: colors.darkGreen,
-    bgSrc: '/assets/cloud-bg-01.svg',
-    bgSrcMobile: '/assets/cloud-bg-01-mobile.svg',
+    bgSrc: '/old-web/assets/cloud-bg-01.svg',
+    bgSrcMobile: '/old-web/assets/cloud-bg-01-mobile.svg',
     labelColor: colors.cream,
     subtextColor: colors.cream,
     shiftX: '0%',
@@ -404,8 +404,8 @@ const cloudSteps = [
   {
     number: '02',
     numberColor: colors.pink,
-    bgSrc: '/assets/cloud-bg-02.svg',
-    bgSrcMobile: '/assets/cloud-bg-02-mobile.svg',
+    bgSrc: '/old-web/assets/cloud-bg-02.svg',
+    bgSrcMobile: '/old-web/assets/cloud-bg-02-mobile.svg',
     labelColor: colors.darkGreen,
     subtextColor: colors.darkGreen,
     shiftX: '0%',
@@ -418,8 +418,8 @@ const cloudSteps = [
   {
     number: '03',
     numberColor: colors.darkGreen,
-    bgSrc: '/assets/cloud-bg-03.svg',
-    bgSrcMobile: '/assets/cloud-bg-03-mobile.svg',
+    bgSrc: '/old-web/assets/cloud-bg-03.svg',
+    bgSrcMobile: '/old-web/assets/cloud-bg-03-mobile.svg',
     labelColor: colors.cream,
     subtextColor: colors.cream,
     shiftX: '0%',
@@ -432,8 +432,8 @@ const cloudSteps = [
   {
     number: '04',
     numberColor: colors.lime,
-    bgSrc: '/assets/cloud-bg-04.svg',
-    bgSrcMobile: '/assets/cloud-bg-04-mobile.svg',
+    bgSrc: '/old-web/assets/cloud-bg-04.svg',
+    bgSrcMobile: '/old-web/assets/cloud-bg-04-mobile.svg',
     labelColor: colors.darkGreen,
     subtextColor: colors.darkGreen,
     shiftX: '-2.5%',
@@ -659,7 +659,7 @@ export function DecisionsSection() {
                   $topPct={`${(node.y / VB_H) * 100}%`}
                 >
                   <Image
-                    src="/assets/timeline-s-point.svg"
+                    src="/old-web/assets/timeline-s-point.svg"
                     alt=""
                     fill
                     unoptimized

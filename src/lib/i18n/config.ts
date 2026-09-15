@@ -2,9 +2,14 @@
  * Locale configuration — the single source of truth for what languages exist,
  * which one is the default, and how a locale maps to a URL.
  *
- * English is the default and lives at the root (`/`). Czech is prefixed (`/cs`).
- * Nothing else in the codebase should hard-code either of those paths.
+ * This is the ORIGINAL site, kept alive under `/old-web` after the static
+ * homepage took over `/` and `/en`. English is its default and lives at
+ * `/old-web`; Czech is prefixed (`/old-web/cs`). Nothing else in the codebase
+ * should hard-code either of those paths — everything derives from OLD_WEB_BASE.
  */
+
+/** URL prefix under which the original site is served. */
+export const OLD_WEB_BASE = '/old-web';
 
 export const locales = ['en', 'cs'] as const;
 
@@ -35,16 +40,17 @@ export function otherLocale(locale: Locale): Locale {
 }
 
 /**
- * Root path for a locale. `/` for English, `/cs` for Czech.
+ * Root path for a locale. `/old-web` for English, `/old-web/cs` for Czech.
  *
- * The site is currently a single page, but this is written as a path helper so
- * that adding `/work` (and `/cs/work`) later is a one-line change here rather
- * than a hunt through components.
+ * The site is a single page, but this is written as a path helper so that a
+ * sub-route would be a one-line change here rather than a hunt through
+ * components. Used by the logo link, the language switcher and the canonical /
+ * hreflang metadata, so the prefix lives in exactly one place.
  */
 export function localePath(locale: Locale, path = ''): string {
   const clean = path.replace(/^\/+/, '');
-  const prefix = locale === defaultLocale ? '' : `/${locale}`;
-  if (!clean) return prefix || '/';
+  const prefix = locale === defaultLocale ? OLD_WEB_BASE : `${OLD_WEB_BASE}/${locale}`;
+  if (!clean) return prefix;
   return `${prefix}/${clean}`;
 }
 
@@ -89,7 +95,8 @@ export const ogLocale: Record<Locale, string> = {
  * Cookie that records an explicit language choice.
  *
  * It is written when the visitor uses the switcher and is deliberately NOT used
- * to redirect anyone: `/` always renders English and `/cs` always renders Czech,
- * so a shared or bookmarked URL never changes language under the visitor.
+ * to redirect anyone: `/old-web` always renders English and `/old-web/cs`
+ * always renders Czech, so a shared or bookmarked URL never changes language
+ * under the visitor.
  */
 export const LOCALE_COOKIE = 'stefanko_locale';

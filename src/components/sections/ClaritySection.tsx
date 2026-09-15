@@ -593,7 +593,7 @@ export function ClaritySection() {
         {/* Interaction note — z-index: 30 via styled component */}
         <InteractionNote data-c-note="">
           <Image
-            src="/assets/interaction-note-border.svg"
+            src="/old-web/assets/interaction-note-border.svg"
             alt=""
             aria-hidden={true}
             fill

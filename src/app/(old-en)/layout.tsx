@@ -2,11 +2,11 @@ import { RootShell } from '@/components/layout/RootShell';
 import { siteViewport } from '@/lib/i18n/metadata';
 import '../globals.css';
 
-/* Czech root layout — see RootShell for why each locale has its own. */
+/* English root layout of the archived site (/old-web) — see RootShell for why each locale has its own. */
 export const viewport = siteViewport;
 
-export default function CsRootLayout({
+export default function EnRootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <RootShell locale="cs">{children}</RootShell>;
+  return <RootShell locale="en">{children}</RootShell>;
 }
