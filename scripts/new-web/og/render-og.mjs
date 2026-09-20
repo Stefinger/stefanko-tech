@@ -1,10 +1,12 @@
 /**
  * Render the Open Graph share images (1200×630 PNG) for the static homepage.
  *
- * The pink "S" is the site's own WebGL model (public/jelly-logo.js) in its finished,
- * resting pose — the same frame the hero shows to visitors with prefers-reduced-motion.
- * The script serves a private harness page, drives headless Chrome over the DevTools
- * protocol, and screenshots it. Nothing here is loaded by the website.
+ * The pink "S" is the site's own WebGL model (public/jelly-logo.js) exactly as the hero
+ * shows it after the intro (idle mode: the inflated "latex" material, the same lights),
+ * frozen at a settled moment of its sway. The script serves a private harness page,
+ * drives headless Chrome over the DevTools protocol at 4× device scale, and box-filters
+ * the screenshot down to 1200×630 (true supersampling). Nothing here is loaded by the
+ * website and the live shader is not modified.
  *
  * Usage:  node scripts/new-web/og/render-og.mjs   (or: pnpm build:og)
  * Needs:  Node ≥ 22 (native WebSocket) and Google Chrome (override with CHROME=/path).
@@ -18,10 +20,21 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { decodePng, encodeDistancePng, encodePng, outlineFromSvg, signedDistanceField, verifyAgainstLive } from './distance-texture.mjs';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../../../..');
 const PUBLIC = join(ROOT, 'public');
 const VERSION = 'v1';
+const SCALE = 4; // render at 4× and downsample: every output pixel averages 16 rendered samples
+/* Shader time of the frozen frame. The hero sways continuously; at t≈57.05 s all sway terms of
+   mark() (x/y drift, in-plane rotation, xz tilt) are near zero, so the S sits upright and centred.
+   (The reduced-motion hero freezes at 6.3 s, which is a leftward, tilted moment of the same sway.) */
+const POSE_TIME = 57.05;
+/* The live 768 px distance texture was rasterised from a bitmap and its gradient wobbles along the
+   contour; for the still the same field is rebuilt analytically from the brand SVG outline at this
+   resolution (see distance-texture.mjs) and checked against the live texture before rendering. */
+const TEXTURE_SIZE = 3072;
+const MAX_SHAPE_DEVIATION = 1; // texels of 768: the analytic outline must match the live texture
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT_DIR = process.env.OG_OUT_DIR || join(PUBLIC, 'assets'); // override only for previews/experiments
 
@@ -33,9 +46,16 @@ const IMAGES = [
 // Layout (px on the 1200×630 canvas). Same composition for both languages.
 const LAYOUT = { margin: 80, headlineTop: 150, headlineSize: 120, logoWidth: 400, logoHeight: 536, logoRight: 96, siteSize: 32, siteBottom: 72 };
 
-/* Offline-quality variant of the live shader: identical shape, pose, lighting and colours,
-   but a smooth (C1) reconstruction of the distance texture, a finer ray march, wider normal
-   sampling and a fixed 4× internal resolution so the still has no streaks or jagged edges. */
+/* Offline-quality variant of the live shader. Shape, material, lights, colours and the normal
+   footprint (e = .012) are the live ones. What changes is only how the distance texture is read
+   and how finely the ray is marched:
+   - the distance texture is the analytic TEXTURE_SIZE field instead of the rasterised 768 one
+     (that one's uneven gradient is what draws the faint radial streaks on the hero), each texel is
+     decoded exactly (NEAREST) and the field is reconstructed with a cubic B-spline, which is C2
+     smooth, so normals — and with them highlights and shading — are continuous with no blur of the
+     surface detail;
+   - the ray march takes smaller steps with a tighter hit threshold so the silhouette is exact;
+   - the canvas renders at the full device resolution (4×) instead of the live ~0.45 MP cap. */
 function offlineShader(source) {
   const patch = (text, from, to) => {
     if (text.split(from).length !== 2) throw new Error(`render-og: expected exactly one occurrence of ${from}`);
@@ -43,19 +63,22 @@ function offlineShader(source) {
   };
   let s = source;
   s = patch(s, ' float mark(vec3 p){',
-    ' float decodeD(vec2 uv){vec4 s=texture2D(uShape,uv);return (s.r*65280.+s.g*255.)/65535.;}\n' +
-    ' float sdf(vec2 uv){vec2 tex=vec2(768.);vec2 f=uv*tex-.5;vec2 i=floor(f);vec2 w=fract(f);w=w*w*(3.-2.*w);vec2 o=(i+.5)/tex;vec2 px=1./tex;' +
-    'float a=decodeD(o),b=decodeD(o+vec2(px.x,0.)),c=decodeD(o+vec2(0.,px.y)),d=decodeD(o+px);return mix(mix(a,b,w.x),mix(c,d,w.x),w.y);}\n' +
+    ` float decodeD(vec2 uv){vec4 s=texture2D(uShape,clamp(uv,.5/${TEXTURE_SIZE}.,1.-.5/${TEXTURE_SIZE}.));return (s.r*65280.+s.g*255.)/65535.;}\n` +
+    ' vec4 bspline(float t){float t2=t*t,t3=t2*t;return vec4(1.-3.*t+3.*t2-t3,4.-6.*t2+3.*t3,1.+3.*t+3.*t2-3.*t3,t3)/6.;}\n' +
+    ` float sdf(vec2 uv){vec2 tex=vec2(${TEXTURE_SIZE}.);vec2 f=uv*tex-.5;` +
+    'vec2 i=floor(f);vec2 w=fract(f);vec4 wx=bspline(w.x),wy=bspline(w.y);float sum=0.;' +
+    'for(int y=-1;y<=2;y++){float row=0.;for(int x=-1;x<=2;x++){row+=decodeD((i+vec2(float(x),float(y))+.5)/tex)*(x==-1?wx.x:x==0?wx.y:x==1?wx.z:wx.w);}' +
+    'sum+=row*(y==-1?wy.x:y==0?wy.y:y==1?wy.z:wy.w);}return sum;}\n' +
     ' float mark(vec3 p){');
   s = patch(s, '  vec2 uv=vec2(p.x,-p.y)/3.+.5;\n  vec4 sampleD=texture2D(uShape,clamp(uv,0.,1.));\n  float d=(sampleD.r*65280.+sampleD.g*255.)/65535.;',
     '  vec2 uv=clamp(vec2(p.x,-p.y)/3.+.5,0.,1.);\n  float d=sdf(uv);');
   s = patch(s, 'for(int i=0;i<64;i++){float dist=scene(ro+rd*travel);if(dist<.0025){hit=true;break;}travel+=max(dist*.78,.002);if(travel>5.5)break;}',
     'for(int i=0;i<220;i++){float dist=scene(ro+rd*travel);if(dist<.0006){hit=true;break;}travel+=max(dist*.6,.0008);if(travel>5.5)break;}');
-  // Sample normals over a wider footprint: the live 0.012 shows fine radial streaks from texel noise once the still is this large.
-  s = patch(s, 'vec3 p=ro+rd*travel;float e=.012;', 'vec3 p=ro+rd*travel;float e=.03;');
   s = patch(s, 'gl.TEXTURE_MIN_FILTER,gl.LINEAR', 'gl.TEXTURE_MIN_FILTER,gl.NEAREST');
   s = patch(s, 'gl.TEXTURE_MAG_FILTER,gl.LINEAR', 'gl.TEXTURE_MAG_FILTER,gl.NEAREST');
-  s = patch(s, "const ratio=Math.min(devicePixelRatio||1,1.5,Math.sqrt((api.mode==='intro'?600000:450000)/(w*h)));", 'const ratio=4;');
+  s = patch(s, "const ratio=Math.min(devicePixelRatio||1,1.5,Math.sqrt((api.mode==='intro'?600000:450000)/(w*h)));", 'const ratio=devicePixelRatio;');
+  s = patch(s, 'reduced.matches?6.3:t', `reduced.matches?${POSE_TIME}:t`); // reduced motion = one static frame; pick our settled moment
+  s = patch(s, "image.src='/assets/logo-distance.png'", "image.src='/logo-distance-export.png'");
   return s;
 }
 
@@ -82,13 +105,29 @@ body{width:1200px;height:630px;overflow:hidden;position:relative;color:#f4f0ea;-
 </body></html>`;
 }
 
+/* Exact box filter: every output pixel is the mean of SCALE×SCALE rendered samples. */
+function downsample({ width, height, channels, data }, factor) {
+  const w = width / factor, h = height / factor, out = Buffer.alloc(w * h * 3), n = factor * factor;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (let c = 0; c < 3; c++) {
+    let sum = 0;
+    for (let dy = 0; dy < factor; dy++) for (let dx = 0; dx < factor; dx++) sum += data[((y * factor + dy) * width + x * factor + dx) * channels + c];
+    out[(y * w + x) * 3 + c] = Math.round(sum / n);
+  }
+  return { width: w, height: h, channels: 3, data: out };
+}
+
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 const work = mkdtempSync(join(tmpdir(), 'stefanko-og-'));
 writeFileSync(join(work, 'jelly-logo.js'), offlineShader(readFileSync(join(PUBLIC, 'jelly-logo.js'), 'utf8')));
+const outline = outlineFromSvg(readFileSync(join(PUBLIC, 'assets', 'blob-s-footer-logo.svg'), 'utf8'));
+const check = verifyAgainstLive(outline, readFileSync(join(PUBLIC, 'assets', 'logo-distance.png')));
+if (check.rmsTexels > MAX_SHAPE_DEVIATION) throw new Error(`render-og: analytic outline deviates from the live distance texture (rms ${check.rmsTexels.toFixed(2)} texels)`);
+console.log(`outline matches the live texture: rms ${check.rmsTexels.toFixed(2)} texels, worst ${check.worstTexels.toFixed(2)} (${check.samples} samples near the edge)`);
+writeFileSync(join(work, 'logo-distance-export.png'), encodeDistancePng(signedDistanceField(outline, TEXTURE_SIZE), TEXTURE_SIZE));
 for (const image of IMAGES) writeFileSync(join(work, `${image.lang}.html`), harness(image));
 const server = createServer((req, res) => {
   const path = req.url.split('?')[0];
-  const file = path === '/jelly-logo.js' ? join(work, 'jelly-logo.js')
+  const file = path === '/jelly-logo.js' || path === '/logo-distance-export.png' ? join(work, path)
     : path.endsWith('.html') ? join(work, path)
     : join(PUBLIC, path); // /fonts.css, /jelly-shape.js, /assets/*
   let body;
@@ -119,7 +158,7 @@ async function render(image) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   await send('Page.enable');
   await send('Page.bringToFront');
-  await send('Emulation.setDeviceMetricsOverride', { width: 1200, height: 630, deviceScaleFactor: 1, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', { width: 1200, height: 630, deviceScaleFactor: SCALE, mobile: false });
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await send('Page.navigate', { url: `http://127.0.0.1:${port}/${image.lang}.html` });
   for (let i = 0; i < 150; i++) {
@@ -129,18 +168,23 @@ async function render(image) {
   await evaluate('dispatchEvent(new Event("resize"))'); // reduced motion draws one frame; make sure it is at final size
   await sleep(1500);
   const state = await evaluate(`(() => { const c = document.querySelector('canvas'); return { ready: document.body.classList.contains('volume-ready'), canvas: c && [c.width, c.height], fonts: [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family).sort() } })()`);
-  if (!state?.ready || !state.canvas || state.canvas[0] < 1000) throw new Error(`render-og ${image.lang}: WebGL model did not render (${JSON.stringify(state)})`);
+  if (!state?.ready || !state.canvas || state.canvas[0] < 1000 * SCALE / 4) throw new Error(`render-og ${image.lang}: WebGL model did not render (${JSON.stringify(state)})`);
   if (!state.fonts.includes('Anton') || !state.fonts.includes('Geist')) throw new Error(`render-og ${image.lang}: fonts missing (${state.fonts})`);
   const shot = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1200, height: 630, scale: 1 } });
-  writeFileSync(join(OUT_DIR, image.file), Buffer.from(shot.result.data, 'base64'));
+  const big = decodePng(Buffer.from(shot.result.data, 'base64'));
+  if (big.width !== 1200 * SCALE || big.height !== 630 * SCALE) throw new Error(`render-og ${image.lang}: screenshot is ${big.width}×${big.height}`);
+  const small = downsample(big, SCALE);
+  writeFileSync(join(OUT_DIR, image.file), encodePng(small.data, small.width, small.height, 3));
   ws.close();
-  console.log(`${OUT_DIR}/${image.file}  (canvas ${state.canvas.join('×')}, fonts ${state.fonts.join('+')})`);
+  console.log(`${OUT_DIR}/${image.file}  (rendered ${1200 * SCALE}×${630 * SCALE}, canvas ${state.canvas.join('×')}, fonts ${state.fonts.join('+')})`);
 }
 
 try {
   for (const image of IMAGES) await render(image);
 } finally {
+  const exited = new Promise(r => chrome.once('exit', r));
   chrome.kill();
+  await exited; // Chrome keeps writing its profile until it is gone
   server.close();
-  rmSync(work, { recursive: true, force: true });
+  rmSync(work, { recursive: true, force: true, maxRetries: 5 });
 }

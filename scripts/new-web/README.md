@@ -46,11 +46,18 @@ committed and rendered by:
 pnpm build:og          # = node scripts/new-web/og/render-og.mjs
 ```
 
-The pink S is the site's own WebGL model (`jelly-logo.js`) in its finished
-resting pose, screenshotted from headless Google Chrome (macOS path by default,
-override with `CHROME=/path/to/chrome`); headline in Anton, wordmark in Geist,
-both from `fonts.css`. When the artwork changes, bump `VERSION` in the script and
-the file names in `index.html` + `build-english.py` — share caches key on the URL.
+The pink S is the site's own WebGL model (`jelly-logo.js`, idle mode as the
+hero shows it after the intro) frozen at a settled moment of its sway, rendered
+in headless Google Chrome (macOS path by default, override with
+`CHROME=/path/to/chrome`) at 4× and box-filtered down; headline in Anton,
+wordmark in Geist, both from `fonts.css`. For the still, the shader reads an
+analytic distance field built from `assets/blob-s-footer-logo.svg`
+(`og/distance-texture.mjs`) instead of the rasterised 768 px
+`logo-distance.png`, which is what gives the hero its faint radial streaks; the
+script verifies that field against the live texture before rendering, so the
+shape is provably the one on the site. The output is deterministic. When the
+artwork changes, bump `VERSION` in the script and the file names in
+`index.html` + `build-english.py` — share caches key on the URL.
 
 The old Next.js site is archived under `/old-web` and `/old-web/cs` with its
 assets in `public/old-web/assets/`; it is `noindex` and not in the sitemap.
