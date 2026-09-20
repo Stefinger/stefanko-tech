@@ -270,7 +270,7 @@ export function FinalCtaSection() {
         </FinalGrid>
 
         <CtaBlock data-f-cta="">
-          <BlobCta href="mailto:jan@stefanko.tech" variant="primary" size="lg">
+          <BlobCta href="mailto:info@stefanko.tech" variant="primary" size="lg">
             {t.finalCta.ctaPrimary}
           </BlobCta>
 
