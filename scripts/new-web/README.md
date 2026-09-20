@@ -26,8 +26,9 @@ pnpm build:en          # = python3 scripts/new-web/build-english.py
 
 Run it after every change to `index.html`, `story.js` or `en-copy.json`, then
 commit the regenerated outputs. The script fails if any Czech text has no
-translation, if a `.html` link or the old preview domain slips into the output,
-or if a relative asset path appears (all paths must be root-absolute so they
+translation, if a `.html` link, the old preview domain or the retired contact
+address (`jan@stefanko.tech`, replaced by `info@stefanko.tech`) slips into the
+output, or if a relative asset path appears (all paths must be root-absolute so they
 work on `/`, `/en` and `/en/` alike).
 
 The old Next.js site is archived under `/old-web` and `/old-web/cs` with its

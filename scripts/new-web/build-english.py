@@ -24,6 +24,8 @@ COPY = json.loads((Path(__file__).resolve().parent / 'en-copy.json').read_text(e
 
 SITE_URL = 'https://stefanko.tech'
 PREVIEW_DOMAIN = 'chatgpt.site'
+CONTACT_EMAIL = 'info@stefanko.tech'
+OLD_CONTACT_EMAIL = 'jan@stefanko.tech'
 
 SWITCHER_CS = ('<a href="/" hreflang="cs" lang="cs" aria-current="page">Čeština <b aria-hidden="true">✓</b></a>'
                '<a href="/en" hreflang="en" lang="en">English</a>')
@@ -82,10 +84,14 @@ Audit().feed(html)
 if czech.search(js):
     raise ValueError('Untranslated JavaScript string')
 
-# Production-route guards: no .html links, no preview domain, no relative asset paths.
+# Production-route guards: no .html links, no preview domain, no retired contact address, no relative asset paths.
 for name, text in (('en.html', html), ('en-story.js', js)):
     if PREVIEW_DOMAIN in text:
         raise ValueError(f'{name}: preview domain leaked into output')
+    if OLD_CONTACT_EMAIL in text:
+        raise ValueError(f'{name}: retired contact address {OLD_CONTACT_EMAIL} left in output')
+if f'mailto:{CONTACT_EMAIL}' not in html:
+    raise ValueError(f'en.html: contact address {CONTACT_EMAIL} missing')
 for attr in re.findall(r'(?:href|src)="([^"]*)"', html):
     if attr.endswith('.html') or attr.startswith('index.html') or attr.startswith('en.html'):
         raise ValueError(f'en.html: .html link left in output: {attr}')
